@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient'
 import { unwrap, unwrapList } from './_helpers'
+import { descendantIdsBySlug } from '@/lib/categoryTree'
 import type { Database, Product, TablesUpdate } from '@/types/database'
 import type { ProductWithRelations } from '@/types/domain'
 
@@ -29,16 +30,23 @@ export async function listProducts(
   if (filters.featuredOnly) query = query.eq('is_featured', true)
   if (filters.search) query = query.ilike('name', `%${filters.search}%`)
   if (filters.categorySlug) {
-    const { data: cat } = await supabase
+    // A parent category must show everything beneath it: products are usually
+    // assigned to a leaf ("Keychains"), so filtering on the parent's own id
+    // alone ("Crochet") would wrongly return nothing.
+    const { data: cats, error } = await supabase
       .from('categories')
-      .select('id')
-      .eq('slug', filters.categorySlug)
-      .maybeSingle()
-    if (!cat) return []
-    query = query.eq('category_id', cat.id)
+      .select('id, slug, parent_id')
+      .eq('is_active', true)
+    if (error) throw new Error(`[listProducts.categories] ${error.message}`)
+
+    const ids = descendantIdsBySlug(cats ?? [], filters.categorySlug)
+    if (ids.length === 0) return [] // unknown or inactive category
+    query = query.in('category_id', ids)
   }
 
-  return normalizeList(unwrapList(await query, 'listProducts'))
+  return normalizeList(unwrapList(await query, 'listProducts'), {
+    dropPlaceholders: true,
+  })
 }
 
 export async function listFeaturedProducts(): Promise<ProductWithRelations[]> {
@@ -55,23 +63,43 @@ export async function getProductBySlug(
     .eq('is_active', true)
     .maybeSingle()
   if (error) throw new Error(`[getProductBySlug] ${error.message}`)
-  return data ? normalize(data) : null
+  return data ? normalize(data, { dropPlaceholders: true }) : null
 }
 
 // Supabase returns nested relations that may be arrays/objects; keep the app's
 // ProductWithRelations shape tidy and sorted here in the repo.
-function normalize(row: Record<string, unknown>): ProductWithRelations {
+interface NormalizeOpts {
+  /**
+   * Storefront only: a placeholder row is a stand-in for "no photo yet". Once a
+   * real photo exists, hide the placeholders — otherwise a seeded placeholder
+   * sitting at sort_order 0 keeps winning `images[0]` and the card still reads
+   * "photo coming soon" after the owner uploads a real picture.
+   *
+   * The admin gallery keeps them visible so they can be deleted.
+   */
+  dropPlaceholders?: boolean
+}
+
+function normalize(
+  row: Record<string, unknown>,
+  opts: NormalizeOpts = {},
+): ProductWithRelations {
   const p = row as unknown as ProductWithRelations
+  const sorted = [...(p.images ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+  const real = sorted.filter((img) => !img.is_placeholder)
   return {
     ...p,
-    images: [...(p.images ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+    images: opts.dropPlaceholders && real.length > 0 ? real : sorted,
     variants: [...(p.variants ?? [])]
       .filter((v) => v.is_active)
       .sort((a, b) => a.sort_order - b.sort_order),
   }
 }
-function normalizeList(rows: Record<string, unknown>[]): ProductWithRelations[] {
-  return rows.map(normalize)
+function normalizeList(
+  rows: Record<string, unknown>[],
+  opts: NormalizeOpts = {},
+): ProductWithRelations[] {
+  return rows.map((row) => normalize(row, opts))
 }
 
 // ── Admin ───────────────────────────────────────────────────────────────────

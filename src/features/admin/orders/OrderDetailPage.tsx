@@ -28,7 +28,9 @@ export function OrderDetailPage() {
 
   const [tracking, setTrackingInput] = useState('')
   const [courier, setCourier] = useState('India Post')
-  const [note, setNote] = useState('')
+  // `null` = untouched. Starting at '' would let "Save note" wipe an existing
+  // note the moment it's clicked without typing.
+  const [note, setNote] = useState<string | null>(null)
 
   if (isLoading || !order) return <LoadingBlock />
 
@@ -175,7 +177,13 @@ export function OrderDetailPage() {
               onChange={(e) => setNote(e.target.value)}
               placeholder="Internal note (not shown to customer)"
             />
-            <Button size="sm" variant="outline" isLoading={updateNote.isPending} onClick={() => updateNote.mutate({ id: order.id, note })}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={note === null}
+              isLoading={updateNote.isPending}
+              onClick={() => note !== null && updateNote.mutate({ id: order.id, note })}
+            >
               Save note
             </Button>
           </Card>

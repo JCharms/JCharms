@@ -44,6 +44,11 @@ export function ImageGallery({
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  // Mirror the storefront's choice: it uses the first real photo and ignores
+  // placeholders entirely once one exists.
+  const realImages = images.filter((img) => !img.is_placeholder)
+  const primaryId = (realImages[0] ?? images[0])?.id
+
   return (
     <Card className="space-y-4 p-6">
       <div className="flex items-center justify-between">
@@ -83,10 +88,19 @@ export function ImageGallery({
               <div className="aspect-square">
                 <ProductImage image={img} name="Product photo" className="h-full w-full" />
               </div>
-              {i === 0 && (
-                <span className="absolute left-1 top-1 rounded bg-pink px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                  Primary
+              {img.is_placeholder ? (
+                <span
+                  title="Auto stand-in — it disappears from the shop as soon as you upload a real photo."
+                  className="absolute left-1 top-1 rounded bg-ink-faint px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                >
+                  Placeholder
                 </span>
+              ) : (
+                img.id === primaryId && (
+                  <span className="absolute left-1 top-1 rounded bg-pink px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    Primary
+                  </span>
+                )
               )}
               <span className="absolute right-1 top-1 cursor-grab text-white/80 opacity-0 group-hover:opacity-100">
                 <GripVertical size={14} />
@@ -110,7 +124,11 @@ export function ImageGallery({
           ))}
         </ul>
       )}
-      <p className="text-xs text-ink-faint">Drag to reorder — the first photo is the primary one.</p>
+      <p className="text-xs text-ink-faint">
+        Drag to reorder — the first real photo is the one shown on product cards.
+        {images.some((i) => i.is_placeholder) &&
+          ' Placeholder tiles vanish from the shop automatically once you upload a real photo.'}
+      </p>
     </Card>
   )
 }

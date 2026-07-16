@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Pencil, Trash2, Star, Eye, EyeOff } from 'lucide-react'
-import { useAdminProducts, useSetProductFlag, useDeleteProduct } from './hooks'
+import {
+  useAdminProducts,
+  useAdminCategories,
+  useSetProductFlag,
+  useDeleteProduct,
+} from './hooks'
 import { CategoriesManager } from './CategoriesManager'
 import { Card, Button, Badge, LoadingBlock } from '@/components/ui'
 import { formatINR } from '@/lib/format'
+import { categoryPath } from '@/lib/categoryTree'
 import { cn } from '@/lib/cn'
 
 type Tab = 'products' | 'categories'
@@ -45,6 +51,7 @@ export function CataloguePage() {
 
 function ProductsTable() {
   const { data: products, isLoading } = useAdminProducts()
+  const { data: categories } = useAdminCategories()
   const setFlag = useSetProductFlag()
   const deleteProduct = useDeleteProduct()
 
@@ -76,10 +83,18 @@ function ProductsTable() {
           </thead>
           <tbody className="divide-y divide-ivory-300/60">
             {products.map((p) => (
-              <tr key={p.id} className="hover:bg-ivory-100">
+              <tr key={p.id} className={cn('hover:bg-ivory-100', !p.is_active && 'bg-ivory-100/60')}>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-ink">{p.name}</div>
-                  <div className="text-xs text-ink-faint">{p.category?.name ?? 'Uncategorised'}</div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn('font-medium', p.is_active ? 'text-ink' : 'text-ink-faint')}>
+                      {p.name}
+                    </span>
+                    {/* Say it plainly — a dimmed row alone is easy to miss. */}
+                    {!p.is_active && <Badge tone="neutral">Hidden from shop</Badge>}
+                  </div>
+                  <div className="text-xs text-ink-faint">
+                    {categoryPath(categories ?? [], p.category_id) ?? 'No category'}
+                  </div>
                 </td>
                 <td className="px-4 py-3 font-mono text-indigo">
                   {p.purchase_mode === 'dm_only' ? '—' : formatINR(p.base_price)}
@@ -92,7 +107,8 @@ function ProductsTable() {
                 <td className="px-4 py-3 text-center">
                   <button
                     onClick={() => setFlag.mutate({ id: p.id, flag: 'is_featured', value: !p.is_featured })}
-                    aria-label="Toggle featured"
+                    aria-label={p.is_featured ? `Unfeature ${p.name}` : `Feature ${p.name} on homepage`}
+                    title={p.is_featured ? 'Featured on homepage — click to remove' : 'Click to feature on the homepage'}
                     className={cn('rounded-full p-1.5', p.is_featured ? 'text-marigold' : 'text-ink-faint hover:text-marigold')}
                   >
                     <Star size={17} className={p.is_featured ? 'fill-marigold' : ''} />
@@ -101,7 +117,8 @@ function ProductsTable() {
                 <td className="px-4 py-3 text-center">
                   <button
                     onClick={() => setFlag.mutate({ id: p.id, flag: 'is_active', value: !p.is_active })}
-                    aria-label="Toggle active"
+                    aria-label={p.is_active ? `Hide ${p.name} from shop` : `Show ${p.name} in shop`}
+                    title={p.is_active ? 'Visible in the shop — click to hide' : 'Hidden — click to show in the shop'}
                     className={cn('rounded-full p-1.5', p.is_active ? 'text-sage-400' : 'text-ink-faint')}
                   >
                     {p.is_active ? <Eye size={17} /> : <EyeOff size={17} />}

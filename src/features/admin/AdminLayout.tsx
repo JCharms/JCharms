@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, Link, useNavigate, ScrollRestoration } from 'react-router-dom'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -112,6 +112,7 @@ export function AdminLayout() {
       </div>
 
       <Toaster />
+      <ScrollRestoration />
     </div>
   )
 }

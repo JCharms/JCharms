@@ -42,13 +42,20 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
 type CategoryInsert = Database['public']['Tables']['categories']['Insert']
 type CategoryUpdate = Database['public']['Tables']['categories']['Update']
 
-/** All categories including inactive (admin view). */
+/**
+ * All categories including inactive (admin view).
+ *
+ * Ordering here is per-level only — parents and children have independent
+ * sort_order values, so callers that render a hierarchy must group by parent
+ * (see flattenCategoryHierarchy) rather than trusting this flat order.
+ */
 export async function adminListCategories(): Promise<Category[]> {
   return unwrapList(
     await supabase
       .from('categories')
       .select('*')
-      .order('sort_order', { ascending: true }),
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
     'adminListCategories',
   )
 }

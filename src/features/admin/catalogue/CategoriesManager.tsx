@@ -1,132 +1,245 @@
-import { useState } from 'react'
-import { Plus, Trash2, Save } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Trash2, Check, X, FolderTree, CornerDownRight } from 'lucide-react'
 import {
   useAdminCategories,
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
 } from './hooks'
-import { Card, Button, Input, Select, LoadingBlock } from '@/components/ui'
+import { Card, Button, Input, LoadingBlock } from '@/components/ui'
 import { slugify } from '@/lib/slug'
+import type { Category } from '@/types/database'
 
-/** Manage categories with one level of nesting (parent → child). */
+/**
+ * Category manager.
+ *
+ * Two levels: main categories (e.g. "Crochet") and subcategories beneath them
+ * (e.g. "Keychains"). Products usually live in a subcategory and automatically
+ * appear under the parent in the shop too — the copy here says so, because that
+ * relationship is the thing that confuses people most.
+ */
 export function CategoriesManager() {
   const { data: categories, isLoading } = useAdminCategories()
   const createCat = useCreateCategory()
   const updateCat = useUpdateCategory()
   const deleteCat = useDeleteCategory()
 
-  const [name, setName] = useState('')
-  const [parentId, setParentId] = useState('')
-
-  const tops = categories?.filter((c) => !c.parent_id) ?? []
-
-  function add() {
-    if (!name.trim()) return
-    createCat.mutate(
-      { name: name.trim(), slug: slugify(name), parent_id: parentId || null },
-      { onSuccess: () => { setName(''); setParentId('') } },
-    )
-  }
+  const [newMain, setNewMain] = useState('')
+  const [addingUnder, setAddingUnder] = useState<string | null>(null)
 
   if (isLoading) return <LoadingBlock />
 
+  const all = categories ?? []
+  const byOrder = (a: Category, b: Category) =>
+    a.sort_order - b.sort_order || a.name.localeCompare(b.name)
+  const tops = all.filter((c) => !c.parent_id).sort(byOrder)
+
+  /** Append to the end of its level so new entries don't jump to the front. */
+  const nextSortOrder = (parentId: string | null) => {
+    const siblings = all.filter((c) => c.parent_id === parentId)
+    return siblings.length === 0
+      ? 0
+      : Math.max(...siblings.map((s) => s.sort_order)) + 1
+  }
+
+  function addMain() {
+    const name = newMain.trim()
+    if (!name) return
+    createCat.mutate(
+      { name, slug: slugify(name), parent_id: null, sort_order: nextSortOrder(null) },
+      { onSuccess: () => setNewMain('') },
+    )
+  }
+
+  function addSub(parentId: string, name: string) {
+    const clean = name.trim()
+    if (!clean) return
+    createCat.mutate(
+      {
+        name: clean,
+        slug: slugify(clean),
+        parent_id: parentId,
+        sort_order: nextSortOrder(parentId),
+      },
+      { onSuccess: () => setAddingUnder(null) },
+    )
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <Card className="flex items-start gap-3 border-indigo-100 bg-indigo-50/50 p-4 text-sm text-ink-muted">
+        <FolderTree size={18} className="mt-0.5 shrink-0 text-indigo" />
+        <p>
+          <strong className="text-indigo">Main categories</strong> appear in the shop
+          menu. <strong className="text-indigo">Subcategories</strong> sit inside them.
+          A product in a subcategory shows under that subcategory <em>and</em> its main
+          category — so “Keychains” products also appear under “Crochet”.
+        </p>
+      </Card>
+
+      {/* Add a main category */}
       <Card className="flex flex-wrap items-end gap-3 p-5">
-        <div className="min-w-[180px] flex-1">
-          <Input label="New category name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Bouquets" />
+        <div className="min-w-[200px] flex-1">
+          <Input
+            label="Add a main category"
+            value={newMain}
+            onChange={(e) => setNewMain(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addMain()}
+            placeholder="e.g. Crochet"
+          />
         </div>
-        <div className="min-w-[160px]">
-          <Select label="Parent (optional)" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-            <option value="">— Top level —</option>
-            {tops.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
-        </div>
-        <Button onClick={add} isLoading={createCat.isPending}>
+        <Button onClick={addMain} isLoading={createCat.isPending} disabled={!newMain.trim()}>
           <Plus size={16} /> Add
         </Button>
       </Card>
 
-      <div className="space-y-2">
-        {tops.map((top) => {
-          const children = categories?.filter((c) => c.parent_id === top.id) ?? []
-          return (
-            <Card key={top.id} className="p-4">
-              <CategoryRow
-                id={top.id}
-                name={top.name}
-                active={top.is_active}
-                onSave={(patch) => updateCat.mutate({ id: top.id, patch })}
-                onDelete={() => deleteCat.mutate(top.id)}
-                bold
-              />
-              {children.length > 0 && (
-                <div className="mt-2 space-y-1 border-l-2 border-ivory-300 pl-4">
-                  {children.map((child) => (
-                    <CategoryRow
-                      key={child.id}
-                      id={child.id}
-                      name={child.name}
-                      active={child.is_active}
-                      onSave={(patch) => updateCat.mutate({ id: child.id, patch })}
-                      onDelete={() => deleteCat.mutate(child.id)}
-                    />
-                  ))}
-                </div>
+      {tops.length === 0 && (
+        <Card className="p-10 text-center text-sm text-ink-muted">
+          No categories yet — add your first main category above.
+        </Card>
+      )}
+
+      {tops.map((top) => {
+        const children = all.filter((c) => c.parent_id === top.id).sort(byOrder)
+        return (
+          <Card key={top.id} className="p-5">
+            <CategoryRow
+              category={top}
+              isMain
+              onSave={(patch) => updateCat.mutate({ id: top.id, patch })}
+              onDelete={() =>
+                confirm(
+                  children.length > 0
+                    ? `Delete "${top.name}"? Its ${children.length} subcategor${children.length === 1 ? 'y' : 'ies'} will become main categories, and its products will be left uncategorised.`
+                    : `Delete "${top.name}"? Its products will be left uncategorised.`,
+                ) && deleteCat.mutate(top.id)
+              }
+            />
+
+            <div className="mt-2 space-y-1 border-l-2 border-ivory-300 pl-4">
+              {children.map((child) => (
+                <CategoryRow
+                  key={child.id}
+                  category={child}
+                  onSave={(patch) => updateCat.mutate({ id: child.id, patch })}
+                  onDelete={() =>
+                    confirm(`Delete "${child.name}"? Its products will be left uncategorised.`) &&
+                    deleteCat.mutate(child.id)
+                  }
+                />
+              ))}
+
+              {addingUnder === top.id ? (
+                <SubCategoryInput
+                  onCancel={() => setAddingUnder(null)}
+                  onSubmit={(name) => addSub(top.id, name)}
+                  isSaving={createCat.isPending}
+                />
+              ) : (
+                <button
+                  onClick={() => setAddingUnder(top.id)}
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-pink-600 hover:bg-pink-50"
+                >
+                  <Plus size={13} /> Add subcategory to {top.name}
+                </button>
               )}
-            </Card>
-          )
-        })}
-      </div>
+            </div>
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
+function SubCategoryInput({
+  onSubmit,
+  onCancel,
+  isSaving,
+}: {
+  onSubmit: (name: string) => void
+  onCancel: () => void
+  isSaving: boolean
+}) {
+  const [value, setValue] = useState('')
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <CornerDownRight size={14} className="shrink-0 text-ink-faint" />
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onSubmit(value)
+          if (e.key === 'Escape') onCancel()
+        }}
+        placeholder="Subcategory name, e.g. Keychains"
+        className="flex-1 rounded-lg border border-ivory-300 px-2 py-1.5 text-sm focus:border-pink focus:outline-none"
+      />
+      <Button size="sm" onClick={() => onSubmit(value)} isLoading={isSaving} disabled={!value.trim()}>
+        Add
+      </Button>
+      <button onClick={onCancel} aria-label="Cancel" className="rounded-lg p-1.5 text-ink-faint hover:bg-ivory-200">
+        <X size={15} />
+      </button>
     </div>
   )
 }
 
 function CategoryRow({
-  name,
-  active,
+  category,
+  isMain,
   onSave,
   onDelete,
-  bold,
 }: {
-  id: string
-  name: string
-  active: boolean
+  category: Category
+  isMain?: boolean
   onSave: (patch: { name?: string; slug?: string; is_active?: boolean }) => void
   onDelete: () => void
-  bold?: boolean
 }) {
-  const [value, setValue] = useState(name)
+  const [value, setValue] = useState(category.name)
+  // Re-sync if the row is refetched (e.g. renamed in another tab).
+  useEffect(() => setValue(category.name), [category.name])
+
+  const dirty = value.trim() !== category.name && value.trim().length > 0
+
   return (
     <div className="flex items-center gap-2 py-1">
+      {!isMain && <CornerDownRight size={14} className="shrink-0 text-ink-faint" />}
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className={`flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm hover:border-ivory-300 focus:border-pink focus:outline-none ${bold ? 'font-display text-indigo' : 'text-ink'}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && dirty) onSave({ name: value.trim(), slug: slugify(value) })
+        }}
+        aria-label={`${category.name} name`}
+        className={`flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 hover:border-ivory-300 focus:border-pink focus:outline-none ${
+          isMain ? 'font-display text-lg text-indigo' : 'text-sm text-ink'
+        }`}
       />
-      <label className="flex items-center gap-1 text-xs text-ink-muted">
+
+      {dirty && (
+        <button
+          onClick={() => onSave({ name: value.trim(), slug: slugify(value) })}
+          className="inline-flex items-center gap-1 rounded-lg bg-pink px-2 py-1 text-xs font-semibold text-white"
+        >
+          <Check size={12} /> Save
+        </button>
+      )}
+
+      <label className="flex shrink-0 items-center gap-1 text-xs text-ink-muted">
         <input
           type="checkbox"
-          checked={active}
+          checked={category.is_active}
           onChange={(e) => onSave({ is_active: e.target.checked })}
           className="h-3.5 w-3.5 accent-pink"
         />
-        active
+        Visible
       </label>
-      <button
-        onClick={() => onSave({ name: value, slug: slugify(value) })}
-        className="rounded-lg p-1.5 text-ink-muted hover:bg-ivory-200 hover:text-indigo"
-        aria-label="Save category"
-      >
-        <Save size={15} />
-      </button>
+
       <button
         onClick={onDelete}
-        className="rounded-lg p-1.5 text-ink-faint hover:bg-pink-50 hover:text-pink-600"
-        aria-label="Delete category"
+        className="shrink-0 rounded-lg p-1.5 text-ink-faint hover:bg-pink-50 hover:text-pink-600"
+        aria-label={`Delete ${category.name}`}
       >
         <Trash2 size={15} />
       </button>

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect } from 'react'
+import { forwardRef, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -14,6 +14,7 @@ import { VariantsEditor } from './VariantsEditor'
 import { ImageGallery } from './ImageGallery'
 import { Card, Button, Input, Textarea, Select, LoadingBlock } from '@/components/ui'
 import { slugify } from '@/lib/slug'
+import { flattenCategoryHierarchy } from '@/lib/categoryTree'
 
 export function ProductEditorPage() {
   const { id = 'new' } = useParams()
@@ -69,6 +70,21 @@ export function ProductEditorPage() {
   }, [product, reset])
 
   const nameValue = watch('name')
+  const purchaseMode = watch('purchase_mode')
+
+  // The slug is a URL detail the owner shouldn't have to think about: keep it
+  // mirrored from the name until (and unless) it's edited by hand.
+  const [slugEdited, setSlugEdited] = useState(false)
+  useEffect(() => {
+    if (isNew && !slugEdited) setValue('slug', slugify(nameValue ?? ''))
+  }, [nameValue, isNew, slugEdited, setValue])
+
+  // Parents immediately followed by their children — sorting by sort_order
+  // alone interleaves the two levels and reads as a jumbled list.
+  const categoryOptions = useMemo(
+    () => flattenCategoryHierarchy(categories ?? []),
+    [categories],
+  )
 
   function onSubmit(values: ProductFormValues) {
     const payload = toProductPayload(values)
@@ -95,16 +111,33 @@ export function ProductEditorPage() {
         <div className="space-y-6">
           <Card className="space-y-4 p-6">
             <Input
-              label="Name"
+              label="Product name"
+              placeholder="e.g. Strawberry Keychain"
               {...register('name')}
               error={errors.name?.message}
-              onBlur={() => {
-                if (isNew && nameValue && !watch('slug')) setValue('slug', slugify(nameValue))
-              }}
             />
-            <Input label="Slug" {...register('slug')} error={errors.slug?.message} hint="Used in the product URL" />
-            <Input label="Short description" {...register('short_description')} error={errors.short_description?.message} />
-            <Textarea label="Description" rows={5} {...register('description')} />
+            <Input
+              label="Web address (slug)"
+              {...register('slug', { onChange: () => setSlugEdited(true) })}
+              error={errors.slug?.message}
+              hint={
+                isNew
+                  ? 'Filled in automatically from the name — you can leave this alone.'
+                  : 'Changing this changes the product’s link. Existing links will break.'
+              }
+            />
+            <Input
+              label="Short description"
+              placeholder="One line shown on the product card"
+              {...register('short_description')}
+              error={errors.short_description?.message}
+            />
+            <Textarea
+              label="Full description"
+              rows={5}
+              placeholder="Shown on the product page — materials, size, care…"
+              {...register('description')}
+            />
           </Card>
 
           {!isNew && product && (
@@ -123,42 +156,84 @@ export function ProductEditorPage() {
         {/* Sidebar settings */}
         <div className="space-y-6">
           <Card className="space-y-4 p-6">
-            <h2 className="font-display text-lg text-indigo">Pricing & mode</h2>
+            <h2 className="font-display text-lg text-indigo">How it's sold</h2>
             <Select label="Purchase mode" {...register('purchase_mode')}>
-              <option value="direct">Direct (on-site checkout)</option>
-              <option value="dm_only">DM only (custom / Instagram)</option>
+              <option value="direct">Buy on the website</option>
+              <option value="dm_only">Enquire on Instagram (custom)</option>
             </Select>
-            <Input label="Base price (₹)" inputMode="numeric" {...register('base_price')} error={errors.base_price?.message} />
-            <Input label="Compare-at price (₹, optional)" inputMode="numeric" {...register('compare_at_price')} />
+            {purchaseMode === 'dm_only' ? (
+              <p className="rounded-lg bg-indigo-50 p-3 text-xs text-ink-muted">
+                Custom pieces skip the cart — the product page shows a “Message us on
+                Instagram” button instead of a price, so no price is needed here.
+              </p>
+            ) : (
+              <>
+                <Input
+                  label="Price (₹)"
+                  inputMode="numeric"
+                  {...register('base_price')}
+                  error={errors.base_price?.message}
+                />
+                <Input
+                  label="Was-price (₹, optional)"
+                  inputMode="numeric"
+                  {...register('compare_at_price')}
+                  hint="Shows a struck-through original beside the price."
+                />
+              </>
+            )}
           </Card>
 
           <Card className="space-y-4 p-6">
-            <h2 className="font-display text-lg text-indigo">Inventory</h2>
-            <Select label="Category" {...register('category_id')}>
-              <option value="">— Uncategorised —</option>
-              {categories?.map((c) => (
+            <h2 className="font-display text-lg text-indigo">Category & stock</h2>
+            <Select
+              label="Category"
+              {...register('category_id')}
+              hint="Subcategory products also show under their parent category."
+            >
+              <option value="">— No category —</option>
+              {categoryOptions.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.parent_id ? '— ' : ''}{c.name}
+                  {'   '.repeat(c.depth)}
+                  {c.depth > 0 ? '└ ' : ''}
+                  {c.name}
+                  {c.is_active ? '' : '  (hidden)'}
                 </option>
               ))}
             </Select>
             <Select label="Stock type" {...register('stock_type')}>
-              <option value="ready_stock">Ready stock</option>
-              <option value="made_to_order">Made to order</option>
+              <option value="ready_stock">Ready stock (on the shelf)</option>
+              <option value="made_to_order">Made to order (crocheted after ordering)</option>
             </Select>
-            <Input label="Stock quantity (blank = untracked)" inputMode="numeric" {...register('stock_quantity')} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Min days" inputMode="numeric" {...register('processing_min_days')} />
-              <Input label="Max days" inputMode="numeric" {...register('processing_max_days')} />
+            <Input
+              label="Stock quantity"
+              inputMode="numeric"
+              placeholder="Leave blank if you don't count stock"
+              {...register('stock_quantity')}
+            />
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-ink">Dispatch time (days)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input placeholder="From" inputMode="numeric" {...register('processing_min_days')} />
+                <Input placeholder="To" inputMode="numeric" {...register('processing_max_days')} />
+              </div>
+              <p className="mt-1 text-xs text-ink-faint">
+                Shown on the product page, e.g. “Dispatch in 3–5 days”.
+              </p>
             </div>
           </Card>
 
           <Card className="space-y-3 p-6">
             <h2 className="font-display text-lg text-indigo">Visibility</h2>
-            <Toggle label="Active (visible in shop)" {...register('is_active')} />
-            <Toggle label="Featured on homepage" {...register('is_featured')} />
-            <Toggle label="Customizable" {...register('is_customizable')} />
-            <Input label="Sort order" inputMode="numeric" {...register('sort_order')} />
+            <Toggle label="Show in the shop" {...register('is_active')} />
+            <Toggle label="Feature on the homepage" {...register('is_featured')} />
+            <Toggle label="Can be customised" {...register('is_customizable')} />
+            <Input
+              label="Sort order"
+              inputMode="numeric"
+              {...register('sort_order')}
+              hint="Lower numbers appear first in the shop."
+            />
           </Card>
 
           <Button

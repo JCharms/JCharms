@@ -5,7 +5,7 @@ import {
   getProductBySlug,
   type ProductFilters,
 } from '@/data/products'
-import { listCategoryTree, getCategoryBySlug } from '@/data/categories'
+import { listCategories, listCategoryTree, getCategoryBySlug } from '@/data/categories'
 import { queryKeys } from '@/lib/queryClient'
 
 export function useProducts(filters: ProductFilters = {}) {
@@ -32,6 +32,11 @@ export function useProduct(slug: string) {
 
 export function useCategoryTree() {
   return useQuery({ queryKey: queryKeys.categories, queryFn: listCategoryTree })
+}
+
+/** Flat list of active categories — for hierarchy maths (parents + children). */
+export function useCategories() {
+  return useQuery({ queryKey: [...queryKeys.categories, 'flat'], queryFn: listCategories })
 }
 
 export function useCategory(slug: string) {

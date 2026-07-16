@@ -83,14 +83,16 @@ export interface SelectProps
   extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
+  hint?: string
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, className, id, children, ...props },
+  { label, error, hint, className, id, children, ...props },
   ref,
 ) {
   const generatedId = useId()
   const selectId = id ?? generatedId
+  const describedBy = error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined
   return (
     <div className="space-y-1.5">
       {label && (
@@ -102,12 +104,22 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ref={ref}
         id={selectId}
         aria-invalid={!!error}
+        aria-describedby={describedBy}
         className={cn(fieldBase, 'pr-9', className)}
         {...props}
       >
         {children}
       </select>
-      {error && <p className="text-xs font-medium text-pink-600">{error}</p>}
+      {hint && !error && (
+        <p id={`${selectId}-hint`} className="text-xs text-ink-faint">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={`${selectId}-error`} className="text-xs font-medium text-pink-600">
+          {error}
+        </p>
+      )}
     </div>
   )
 })

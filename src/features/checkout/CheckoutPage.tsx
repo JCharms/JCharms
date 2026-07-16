@@ -11,6 +11,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import { shippingForSubtotal } from '@/data/settings'
 import { Button, Input, Textarea, Card, Price } from '@/components/ui'
 import { ProductImage } from '@/features/products/components/ProductImage'
+import { formatINR } from '@/lib/format'
 
 export function CheckoutPage() {
   const navigate = useNavigate()
@@ -141,7 +142,7 @@ export function CheckoutPage() {
               </div>
             </div>
             <Button type="submit" size="lg" fullWidth isLoading={isPlacing}>
-              <ShoppingBag size={18} /> Pay {config ? '' : ''}securely
+              <ShoppingBag size={18} /> Pay {formatINR(total)} securely
             </Button>
             <Link to="/shop" className="block text-center text-sm text-ink-muted hover:text-indigo">
               Continue shopping

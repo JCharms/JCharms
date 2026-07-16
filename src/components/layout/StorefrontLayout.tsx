@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, ScrollRestoration } from 'react-router-dom'
 import { ShoppingBag, Instagram, Sparkles, User } from 'lucide-react'
 import { useCart } from '@/features/cart/useCart'
 import { useSiteConfig } from '@/hooks/useSiteConfig'
@@ -33,9 +33,14 @@ export function StorefrontLayout() {
 
           <nav className="hidden items-center gap-6 text-sm font-medium text-ink-muted md:flex">
             <NavLinkItem to="/shop" label="Shop all" />
-            {categories?.slice(0, 3).map((cat) => (
+            {/* Every main category appears here — a newly added one must never
+                silently fail to show up in the menu. */}
+            {categories?.slice(0, 4).map((cat) => (
               <NavLinkItem key={cat.id} to={`/shop/${cat.slug}`} label={cat.name} />
             ))}
+            {categories && categories.length > 4 && (
+              <NavLinkItem to="/shop" label="More…" />
+            )}
             <NavLinkItem to="/track" label="Track order" />
           </nav>
 
@@ -110,6 +115,9 @@ export function StorefrontLayout() {
 
       <CartDrawer />
       <Toaster />
+
+      {/* New pages open at the top; Back/Forward restores where you were. */}
+      <ScrollRestoration />
     </div>
   )
 }
