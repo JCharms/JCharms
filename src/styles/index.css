@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-ivory text-ink font-sans antialiased;
+    font-feature-settings: 'ss01', 'cv01';
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display text-indigo;
+    font-variation-settings: 'opsz' 40;
+    letter-spacing: -0.01em;
+  }
+
+  /* Visible keyboard focus everywhere — never remove without replacing. */
+  :focus-visible {
+    @apply outline-none;
+    box-shadow: 0 0 0 3px rgba(242, 97, 139, 0.5);
+    border-radius: 0.375rem;
+  }
+
+  /* Handmade price-tag numerals. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* ── Running-stitch motif ─────────────────────────────────────────────
+     The one deliberate signature: a dashed thread-like line. Used as an
+     animated hover underline, a featured-card border, and reveal accents.
+     Keep it rare — it's memorable because it isn't everywhere. */
+
+  .stitch-underline {
+    position: relative;
+    display: inline-block;
+  }
+  .stitch-underline::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.35em;
+    height: 2px;
+    color: theme('colors.pink.DEFAULT');
+    background-image: theme('backgroundImage.running-stitch');
+    background-size: 16px 2px;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .stitch-underline:hover::after,
+  .stitch-underline:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  /* Dashed thread border for featured product cards. */
+  .stitch-border {
+    border: 2px dashed theme('colors.pink.200');
+    border-radius: theme('borderRadius.xl');
+  }
+
+  /* Scroll/page-load reveal — content stitches into place. */
+  .reveal {
+    @apply animate-stitch-in;
+  }
+}
+
+/* Respect user motion preferences — disable all decorative motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .stitch-underline::after {
+    transform: scaleX(1);
+  }
+}
