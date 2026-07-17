@@ -1,30 +1,16 @@
 import { supabase } from '@/lib/supabaseClient'
 import { unwrapList } from './_helpers'
+import { SITE_CONFIG_DEFAULTS as DEFAULTS, type SiteConfig } from '@/lib/policy'
 import type { Json, SiteSetting } from '@/types/database'
 
 /**
  * Typed access to admin-editable site config (spec §3c). The storefront reads
  * these instead of hardcoding shipping fees, handles, banner text, etc.
+ *
+ * This module owns *reading* the settings; what they mean (shipping maths,
+ * delivery wording) lives in `@/lib/policy` alongside the SiteConfig shape.
  */
-export interface SiteConfig {
-  shippingFee: number
-  freeShippingOver: number
-  instagramHandle: string
-  supportEmail: string
-  supportPhone: string
-  announcement: { enabled: boolean; text: string }
-  storeOpen: boolean
-}
-
-const DEFAULTS: SiteConfig = {
-  shippingFee: 80,
-  freeShippingOver: 0,
-  instagramHandle: 'j_.charms',
-  supportEmail: '',
-  supportPhone: '',
-  announcement: { enabled: false, text: '' },
-  storeOpen: true,
-}
+export type { SiteConfig }
 
 /** Read every setting and shape it into a typed config object. */
 export async function getSiteConfig(): Promise<SiteConfig> {
@@ -44,6 +30,9 @@ export async function getSiteConfig(): Promise<SiteConfig> {
   return {
     shippingFee: num('shipping_fee', DEFAULTS.shippingFee),
     freeShippingOver: num('free_shipping_over', DEFAULTS.freeShippingOver),
+    deliveryDaysMin: num('delivery_days_min', DEFAULTS.deliveryDaysMin),
+    deliveryDaysMax: num('delivery_days_max', DEFAULTS.deliveryDaysMax),
+    returnsPolicy: str('returns_policy', DEFAULTS.returnsPolicy),
     instagramHandle: str('instagram_handle', DEFAULTS.instagramHandle),
     supportEmail: str('support_email', DEFAULTS.supportEmail),
     supportPhone: str('support_phone', DEFAULTS.supportPhone),
@@ -51,12 +40,6 @@ export async function getSiteConfig(): Promise<SiteConfig> {
       (map.get('announcement') as SiteConfig['announcement']) ?? DEFAULTS.announcement,
     storeOpen: (map.get('store_open') as boolean) ?? DEFAULTS.storeOpen,
   }
-}
-
-/** Compute the shipping fee for a given subtotal using config thresholds. */
-export function shippingForSubtotal(config: SiteConfig, subtotal: number): number {
-  if (config.freeShippingOver > 0 && subtotal >= config.freeShippingOver) return 0
-  return config.shippingFee
 }
 
 // ── Admin ───────────────────────────────────────────────────────────────────

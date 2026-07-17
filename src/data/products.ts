@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabaseClient'
 import { unwrap, unwrapList } from './_helpers'
-import { descendantIdsBySlug } from '@/lib/categoryTree'
+import { descendantIdsBySlug, rootAncestorOf } from '@/lib/categoryTree'
+import { collectUpTo } from '@/lib/collect'
 import type { Database, Product, TablesUpdate } from '@/types/database'
 import type { ProductWithRelations } from '@/types/domain'
 
@@ -51,6 +52,50 @@ export async function listProducts(
 
 export async function listFeaturedProducts(): Promise<ProductWithRelations[]> {
   return listProducts({ featuredOnly: true })
+}
+
+/**
+ * "You might also like" for a product page.
+ *
+ * Widens the net in relevance order, stopping as soon as it has enough:
+ *
+ *   1. the same category — closest match;
+ *   2. the whole top-level family it belongs to (a leaf like "Keychains" may
+ *      hold nothing but the product being looked at, which is the common case
+ *      for a small handmade shop);
+ *   3. featured picks — the owner's own choices;
+ *   4. anything else active, so the section still fills on a young catalogue.
+ *
+ * Each step only runs if the previous ones came up short, so the usual path is
+ * a single query. Returns fewer than `limit` (or none) rather than padding with
+ * junk — the section hides itself when empty.
+ */
+export async function listRelatedProducts(
+  productId: string,
+  categorySlug: string | undefined,
+  limit = 4,
+): Promise<ProductWithRelations[]> {
+  /** Everything under the top-level category this product belongs to. */
+  const widerFamily = async (): Promise<ProductWithRelations[]> => {
+    if (!categorySlug) return []
+    const { data: cats } = await supabase
+      .from('categories')
+      .select('id, slug, parent_id')
+      .eq('is_active', true)
+    const root = rootAncestorOf(cats ?? [], categorySlug)
+    if (!root?.slug || root.slug === categorySlug) return []
+    return listProducts({ categorySlug: root.slug })
+  }
+
+  return collectUpTo(
+    [
+      () => (categorySlug ? listProducts({ categorySlug }) : Promise.resolve([])),
+      widerFamily,
+      listFeaturedProducts,
+      () => listProducts(),
+    ],
+    { limit, exclude: [productId] },
+  )
 }
 
 export async function getProductBySlug(

@@ -10,17 +10,21 @@ export interface Toast {
 interface UIState {
   toasts: Toast[]
   cartOpen: boolean
+  /** The slide-over category browser — also doubles as the mobile nav. */
+  categoryMenuOpen: boolean
   pushToast: (message: string, tone?: ToastTone) => void
   dismissToast: (id: number) => void
   setCartOpen: (open: boolean) => void
+  setCategoryMenuOpen: (open: boolean) => void
 }
 
 let nextId = 1
 
-/** Ephemeral UI state: toasts + cart drawer visibility. */
+/** Ephemeral UI state: toasts + drawer visibility. */
 export const useUIStore = create<UIState>((set) => ({
   toasts: [],
   cartOpen: false,
+  categoryMenuOpen: false,
   pushToast: (message, tone = 'success') => {
     const id = nextId++
     set((s) => ({ toasts: [...s.toasts, { id, message, tone }] }))
@@ -29,7 +33,11 @@ export const useUIStore = create<UIState>((set) => ({
     }, 3200)
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-  setCartOpen: (cartOpen) => set({ cartOpen }),
+  // Only one slide-over at a time — opening the bag over the category menu (or
+  // vice versa) leaves two stacked panels and two Escape handlers fighting.
+  setCartOpen: (cartOpen) => set(cartOpen ? { cartOpen, categoryMenuOpen: false } : { cartOpen }),
+  setCategoryMenuOpen: (categoryMenuOpen) =>
+    set(categoryMenuOpen ? { categoryMenuOpen, cartOpen: false } : { categoryMenuOpen }),
 }))
 
 /** Convenience for non-component code (repos catch → toast in components). */

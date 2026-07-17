@@ -11,6 +11,8 @@ import {
 } from './hooks'
 import { reviewScreenshotUrl } from '@/data/reviews'
 import { Card, Button, Input, Textarea, Select, LoadingBlock, Badge } from '@/components/ui'
+import { validateImageFile } from '@/lib/imageFile'
+import { toast } from '@/store/ui'
 import { cn } from '@/lib/cn'
 import type { Review } from '@/types/database'
 
@@ -26,6 +28,7 @@ export function ReviewsPage() {
   const [rating, setRating] = useState('5')
   const [body, setBody] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [errors, setErrors] = useState<{ author?: string; body?: string }>({})
   const fileRef = useRef<HTMLInputElement>(null)
 
   function resetForm() {
@@ -33,11 +36,31 @@ export function ReviewsPage() {
     setBody('')
     setRating('5')
     setFile(null)
+    setErrors({})
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  function pickFile(picked: File | null) {
+    if (!picked) return setFile(null)
+    const problem = validateImageFile(picked)
+    if (problem) {
+      toast.error(problem)
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
+    setFile(picked)
+  }
+
   function add() {
-    if (!author.trim() || !body.trim()) return
+    // This used to `return` silently on an empty field — the button simply did
+    // nothing and never said why.
+    const next: typeof errors = {}
+    if (author.trim().length < 2) next.author = "Whose review is this? Add the customer's name."
+    if (body.trim().length < 3) next.body = 'Add what they said.'
+    if (body.trim().length > 1000) next.body = 'That testimonial is very long — please trim it.'
+    setErrors(next)
+    if (Object.keys(next).length > 0) return
+
     create.mutate(
       {
         author_name: author.trim(),
@@ -63,14 +86,26 @@ export function ReviewsPage() {
       <Card className="space-y-4 p-6">
         <h2 className="font-display text-lg text-indigo">Add a testimonial</h2>
         <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-          <Input label="Author name" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="e.g. Ananya R." />
+          <Input
+            label="Author name"
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
+            error={errors.author}
+            placeholder="e.g. Ananya R."
+          />
           <Select label="Rating" value={rating} onChange={(e) => setRating(e.target.value)}>
             {[5, 4, 3, 2, 1].map((n) => (
               <option key={n} value={n}>{n} star{n > 1 ? 's' : ''}</option>
             ))}
           </Select>
         </div>
-        <Textarea label="Testimonial" rows={3} value={body} onChange={(e) => setBody(e.target.value)} />
+        <Textarea
+          label="Testimonial"
+          rows={3}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          error={errors.body}
+        />
 
         {/* Optional screenshot — uploaded straight from here, no bucket needed. */}
         <div>
@@ -80,7 +115,7 @@ export function ReviewsPage() {
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
           />
           {file ? (
             <div className="flex items-center gap-3">
@@ -175,7 +210,9 @@ function ReviewImageControls({ review }: { review: Review }) {
   function onPick(files: FileList | null) {
     const f = files?.[0]
     if (!f) return
-    upload.mutate({ id: review.id, file: f, oldPath: review.screenshot_path })
+    const problem = validateImageFile(f)
+    if (problem) toast.error(problem)
+    else upload.mutate({ id: review.id, file: f, oldPath: review.screenshot_path })
     if (fileRef.current) fileRef.current.value = ''
   }
 

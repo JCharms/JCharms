@@ -10,9 +10,44 @@ import { Button, Input, Card, EmptyState } from '@/components/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
 import type { OrderWithItems } from '@/types/domain'
 
+const isEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)
+/** "+91 98765 43210" / "098765-43210" → "9876543210", else null. */
+const toMobile = (v: string): string | null => {
+  const digits = v.replace(/[\s()-]/g, '').replace(/^(\+91|91|0)/, '')
+  return /^[6-9]\d{9}$/.test(digits) ? digits : null
+}
+
 const schema = z.object({
-  orderNumber: z.string().min(3, 'Enter your order number (e.g. JC-1000)'),
-  contact: z.string().min(3, 'Enter the email or phone from your order'),
+  orderNumber: z
+    .string()
+    .trim()
+    .min(1, 'Enter your order number (e.g. JC-1000)')
+    // Accept "1000", "jc-1000" or "JC1000": the number is retyped off an email,
+    // so the exact shape is a coin toss and the lookup is an exact match.
+    .transform((v) => {
+      const clean = v.toUpperCase().replace(/\s/g, '')
+      return /^\d+$/.test(clean) ? `JC-${clean}` : clean.replace(/^JC-?/, 'JC-')
+    })
+    .pipe(
+      z
+        .string()
+        .regex(/^JC-\d+$/, 'Order numbers look like JC-1000 — check your confirmation email'),
+    ),
+  contact: z
+    .string()
+    .trim()
+    .min(1, 'Enter the email or phone from your order')
+    // Normalise here so the stored value is what gets compared — checkout saves
+    // a bare 10-digit number, so sending "+91…" would never match.
+    .transform((v) => toMobile(v) ?? v.toLowerCase())
+    .pipe(
+      z
+        .string()
+        .refine(
+          (v) => isEmail(v) || toMobile(v) !== null,
+          'Enter the email address or 10-digit mobile number you used on the order',
+        ),
+    ),
 })
 type Values = z.infer<typeof schema>
 

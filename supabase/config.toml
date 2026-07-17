@@ -154,13 +154,30 @@ max_indexes = 5
 
 [auth]
 enabled = true
+# ⚠️ THIS FILE CONFIGURES THE **LOCAL** STACK ONLY. The hosted project keeps its
+# own copy of these two settings, and they are what decide where a confirmation
+# or password-reset email actually lands. Setting them here does NOT change the
+# cloud project — do that in Dashboard → Authentication → URL Configuration.
+# See DEVELOPER_GUIDE.md → "Auth email redirects".
+#
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails. Matches the Vite dev server so confirmation links land back on the app locally.
+#
+# IMPORTANT: this is also the *fallback*. Supabase ignores any `redirectTo` that
+# isn't matched by additional_redirect_urls below and silently uses site_url
+# instead — a cloud project still on its "http://localhost:3000" default is
+# exactly why emails from the live site can land on localhost.
 site_url = "http://localhost:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:5173", "http://127.0.0.1:5173"]
+# Supports globs, which is how Netlify deploy previews get covered.
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "http://localhost:5173/**",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5173/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

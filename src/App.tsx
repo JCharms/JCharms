@@ -112,6 +112,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: 'policies',
+        lazy: async () => {
+          const { PoliciesPage } = await import('@/features/policies/PoliciesPage')
+          return { Component: PoliciesPage }
+        },
+      },
+      {
         path: '*',
         lazy: async () => {
           const { NotFoundPage } = await import('@/components/layout/NotFoundPage')

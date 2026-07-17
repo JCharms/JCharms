@@ -1,11 +1,15 @@
 import { Link, useParams } from 'react-router-dom'
 import { CheckCircle2, Package } from 'lucide-react'
+import { useSiteConfig } from '@/hooks/useSiteConfig'
+import { deliveryEstimateLabel } from '@/lib/policy'
 import { Button, Card } from '@/components/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
 
 /** Post-payment thank-you. Order number is the ticket for guest tracking. */
 export function OrderConfirmedPage() {
   const { orderNumber } = useParams()
+  const { data: config } = useSiteConfig()
+  const deliveryEstimate = config ? deliveryEstimateLabel(config) : ''
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center px-4 py-20 text-center">
@@ -17,6 +21,9 @@ export function OrderConfirmedPage() {
       <p className="mt-4 text-ink-muted">
         Thank you for supporting handmade 💕 We've emailed your confirmation and will
         start stitching soon.
+        {deliveryEstimate && (
+          <> Your order should reach you in about <strong className="text-ink">{deliveryEstimate}</strong>.</>
+        )}
       </p>
 
       {orderNumber && (

@@ -20,6 +20,8 @@ export const queryKeys = {
   categories: ['categories'] as const,
   products: (filters?: unknown) => ['products', filters ?? {}] as const,
   product: (slug: string) => ['product', slug] as const,
+  // Under the 'products' prefix so catalogue edits invalidate it for free.
+  relatedProducts: (productId: string) => ['products', 'related', productId] as const,
   reviews: ['reviews'] as const,
   settings: ['site_settings'] as const,
   // Admin

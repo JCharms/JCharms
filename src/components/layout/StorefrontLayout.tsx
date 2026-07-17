@@ -1,17 +1,30 @@
 import { Link, NavLink, Outlet, ScrollRestoration } from 'react-router-dom'
-import { ShoppingBag, Instagram, Sparkles, User } from 'lucide-react'
+import {
+  ChevronDown,
+  LayoutDashboard,
+  Menu,
+  ShoppingBag,
+  Sparkles,
+  User,
+} from 'lucide-react'
+// lucide deprecated its brand icons (removed in v1.0) and points at Simple
+// Icons; react-icons ships those and is already a dependency.
+import { SiInstagram } from 'react-icons/si'
 import { useCart } from '@/features/cart/useCart'
 import { useSiteConfig } from '@/hooks/useSiteConfig'
-import { useCategoryTree } from '@/features/products/hooks'
+import { useAuthStore } from '@/features/auth/authStore'
 import { CartDrawer } from '@/features/cart/CartDrawer'
+import { CategoryPanel } from './CategoryPanel'
 import { Toaster } from '@/components/ui'
 import { instagramProfileUrl } from '@/lib/links'
+import { useUIStore } from '@/store/ui'
 import { cn } from '@/lib/cn'
 
 export function StorefrontLayout() {
   const { count, openCart } = useCart()
   const { data: config } = useSiteConfig()
-  const { data: categories } = useCategoryTree()
+  const isAdmin = useAuthStore((s) => s.isAdmin)
+  const openCategories = useUIStore((s) => s.setCategoryMenuOpen)
 
   return (
     <div className="flex min-h-screen flex-col bg-ivory">
@@ -24,27 +37,48 @@ export function StorefrontLayout() {
 
       <header className="sticky top-0 z-30 border-b border-ivory-300/60 bg-ivory/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
-          <Link
-            to="/"
-            className="stitch-underline font-display text-2xl font-semibold text-indigo"
-          >
-            J Charms
-          </Link>
+          <div className="flex items-center gap-2">
+            {/* Phones have no room for the nav below — this is their way in. */}
+            <button
+              onClick={() => openCategories(true)}
+              aria-label="Open menu"
+              className="rounded-full p-2 text-indigo transition hover:bg-ivory-300 md:hidden"
+            >
+              <Menu size={22} />
+            </button>
+            <Link
+              to="/"
+              className="stitch-underline font-display text-2xl font-semibold text-indigo"
+            >
+              J Charms
+            </Link>
+          </div>
 
+          {/* One "Categories" control instead of one link per category: the
+              catalogue is expected to grow well past what a bar can hold. */}
           <nav className="hidden items-center gap-6 text-sm font-medium text-ink-muted md:flex">
+            <button
+              onClick={() => openCategories(true)}
+              className="stitch-underline inline-flex items-center gap-1 transition hover:text-indigo"
+            >
+              Categories <ChevronDown size={15} aria-hidden />
+            </button>
             <NavLinkItem to="/shop" label="Shop all" />
-            {/* Every main category appears here — a newly added one must never
-                silently fail to show up in the menu. */}
-            {categories?.slice(0, 4).map((cat) => (
-              <NavLinkItem key={cat.id} to={`/shop/${cat.slug}`} label={cat.name} />
-            ))}
-            {categories && categories.length > 4 && (
-              <NavLinkItem to="/shop" label="More…" />
-            )}
             <NavLinkItem to="/track" label="Track order" />
+            <NavLinkItem to="/policies" label="Shipping & returns" />
           </nav>
 
           <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="hidden rounded-full p-2 text-indigo transition hover:bg-ivory-300 sm:inline-flex"
+                aria-label="Admin panel"
+                title="Admin panel"
+              >
+                <LayoutDashboard size={20} />
+              </Link>
+            )}
             <Link
               to="/account"
               className="hidden rounded-full p-2 text-ink-muted transition hover:bg-ivory-300 hover:text-indigo sm:inline-flex"
@@ -85,6 +119,7 @@ export function StorefrontLayout() {
             <ul className="space-y-1.5 text-ivory-100/80">
               <li><Link to="/shop" className="hover:text-pink-200">Shop all</Link></li>
               <li><Link to="/track" className="hover:text-pink-200">Track your order</Link></li>
+              <li><Link to="/policies" className="hover:text-pink-200">Shipping &amp; returns</Link></li>
               <li><Link to="/account" className="hover:text-pink-200">My account</Link></li>
             </ul>
           </div>
@@ -96,7 +131,7 @@ export function StorefrontLayout() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-ivory-100/80 hover:text-pink-200"
             >
-              <Instagram size={16} /> @{config?.instagramHandle ?? 'j_.charms'}
+              <SiInstagram size={15} aria-hidden /> @{config?.instagramHandle ?? 'j_.charms'}
             </a>
             {config?.supportEmail && (
               <a
@@ -113,6 +148,7 @@ export function StorefrontLayout() {
         </div>
       </footer>
 
+      <CategoryPanel />
       <CartDrawer />
       <Toaster />
 

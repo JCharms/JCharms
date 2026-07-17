@@ -1,10 +1,16 @@
 import { supabase } from '@/lib/supabaseClient'
+import { siteUrl } from '@/lib/siteUrl'
 import type { Session, User } from '@supabase/supabase-js'
 
 /**
  * Auth repository — thin wrapper over Supabase Auth. Password reset uses
  * Supabase's built-in email + token flow (spec §5); we never build custom
  * forgot-password logic.
+ *
+ * Every emailed link is built with `siteUrl()` so it points at the canonical
+ * domain. Supabase ignores a redirect that isn't on the project's allow-list
+ * and quietly substitutes the Site URL, which is how these end up on
+ * localhost — see lib/siteUrl.ts.
  */
 export async function signUp(email: string, password: string, fullName?: string) {
   const { data, error } = await supabase.auth.signUp({
@@ -12,8 +18,9 @@ export async function signUp(email: string, password: string, fullName?: string)
     password,
     options: {
       data: fullName ? { full_name: fullName } : undefined,
-      // Where the "confirm your email" link lands once clicked — the landing page.
-      emailRedirectTo: `${window.location.origin}/`,
+      // Where the "confirm your email" link lands once clicked — the landing
+      // page, which establishes the session and fires the welcome email.
+      emailRedirectTo: siteUrl('/'),
     },
   })
   if (error) throw new Error(error.message)
@@ -25,7 +32,7 @@ export async function resendConfirmation(email: string) {
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email,
-    options: { emailRedirectTo: `${window.location.origin}/` },
+    options: { emailRedirectTo: siteUrl('/') },
   })
   if (error) throw new Error(error.message)
 }
@@ -53,7 +60,7 @@ export async function signOut() {
 /** Kick off Supabase's native password-reset email. */
 export async function requestPasswordReset(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/account/reset`,
+    redirectTo: siteUrl('/account/reset'),
   })
   if (error) throw new Error(error.message)
 }
@@ -73,14 +80,30 @@ export function onAuthChange(cb: (session: Session | null) => void) {
   return supabase.auth.onAuthStateChange((_event, session) => cb(session))
 }
 
-/** Is this user an admin? Checks admin_profiles (RLS: self-readable by admins). */
+/**
+ * Is this user an admin? Checks admin_profiles (RLS: self-readable by admins).
+ *
+ * Resolves false rather than throwing: this runs on every session change, and a
+ * transient network error must degrade to "not an admin" instead of wedging
+ * app startup. RLS is the real boundary either way — a false positive here
+ * would still be refused by the database.
+ */
 export async function checkIsAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('admin_profiles')
-    .select('user_id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  return !!data
+  try {
+    const { data, error } = await supabase
+      .from('admin_profiles')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (error) {
+      console.error('[checkIsAdmin]', error.message)
+      return false
+    }
+    return !!data
+  } catch (err) {
+    console.error('[checkIsAdmin]', err)
+    return false
+  }
 }
 
 export type { Session, User }

@@ -8,6 +8,7 @@ import {
 } from './hooks'
 import { Card, Button, Input, LoadingBlock } from '@/components/ui'
 import { slugify } from '@/lib/slug'
+import { toast } from '@/store/ui'
 import type { Category } from '@/types/database'
 
 /**
@@ -42,9 +43,24 @@ export function CategoriesManager() {
       : Math.max(...siblings.map((s) => s.sort_order)) + 1
   }
 
+  /**
+   * Category slugs are unique across the whole table, so "Bows" under Crochet
+   * and "Bows" under Hair Accessories collide. Say that in words rather than
+   * letting Postgres reject the insert.
+   */
+  function slugProblem(name: string, ignoreId?: string): string | null {
+    const slug = slugify(name)
+    if (!slug) return 'Please use at least one letter or number in the name.'
+    const clash = all.find((c) => c.slug === slug && c.id !== ignoreId)
+    if (!clash) return null
+    return `“${clash.name}” already uses that web address. Try a more specific name.`
+  }
+
   function addMain() {
     const name = newMain.trim()
     if (!name) return
+    const problem = slugProblem(name)
+    if (problem) return toast.error(problem)
     createCat.mutate(
       { name, slug: slugify(name), parent_id: null, sort_order: nextSortOrder(null) },
       { onSuccess: () => setNewMain('') },
@@ -54,6 +70,8 @@ export function CategoriesManager() {
   function addSub(parentId: string, name: string) {
     const clean = name.trim()
     if (!clean) return
+    const problem = slugProblem(clean)
+    if (problem) return toast.error(problem)
     createCat.mutate(
       {
         name: clean,
@@ -63,6 +81,12 @@ export function CategoriesManager() {
       },
       { onSuccess: () => setAddingUnder(null) },
     )
+  }
+
+  function rename(category: Category, name: string) {
+    const problem = slugProblem(name, category.id)
+    if (problem) return toast.error(problem)
+    updateCat.mutate({ id: category.id, patch: { name, slug: slugify(name) } })
   }
 
   return (
@@ -106,7 +130,8 @@ export function CategoriesManager() {
             <CategoryRow
               category={top}
               isMain
-              onSave={(patch) => updateCat.mutate({ id: top.id, patch })}
+              onRename={(name) => rename(top, name)}
+              onToggleActive={(is_active) => updateCat.mutate({ id: top.id, patch: { is_active } })}
               onDelete={() =>
                 confirm(
                   children.length > 0
@@ -121,7 +146,10 @@ export function CategoriesManager() {
                 <CategoryRow
                   key={child.id}
                   category={child}
-                  onSave={(patch) => updateCat.mutate({ id: child.id, patch })}
+                  onRename={(name) => rename(child, name)}
+                  onToggleActive={(is_active) =>
+                    updateCat.mutate({ id: child.id, patch: { is_active } })
+                  }
                   onDelete={() =>
                     confirm(`Delete "${child.name}"? Its products will be left uncategorised.`) &&
                     deleteCat.mutate(child.id)
@@ -188,12 +216,14 @@ function SubCategoryInput({
 function CategoryRow({
   category,
   isMain,
-  onSave,
+  onRename,
+  onToggleActive,
   onDelete,
 }: {
   category: Category
   isMain?: boolean
-  onSave: (patch: { name?: string; slug?: string; is_active?: boolean }) => void
+  onRename: (name: string) => void
+  onToggleActive: (isActive: boolean) => void
   onDelete: () => void
 }) {
   const [value, setValue] = useState(category.name)
@@ -209,7 +239,7 @@ function CategoryRow({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && dirty) onSave({ name: value.trim(), slug: slugify(value) })
+          if (e.key === 'Enter' && dirty) onRename(value.trim())
         }}
         aria-label={`${category.name} name`}
         className={`flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 hover:border-ivory-300 focus:border-pink focus:outline-none ${
@@ -219,18 +249,25 @@ function CategoryRow({
 
       {dirty && (
         <button
-          onClick={() => onSave({ name: value.trim(), slug: slugify(value) })}
+          onClick={() => onRename(value.trim())}
           className="inline-flex items-center gap-1 rounded-lg bg-pink px-2 py-1 text-xs font-semibold text-white"
         >
           <Check size={12} /> Save
         </button>
       )}
 
-      <label className="flex shrink-0 items-center gap-1 text-xs text-ink-muted">
+      <label
+        className="flex shrink-0 items-center gap-1 text-xs text-ink-muted"
+        title={
+          category.is_active
+            ? 'Showing in the shop — untick to hide it and everything inside it'
+            : 'Hidden from the shop'
+        }
+      >
         <input
           type="checkbox"
           checked={category.is_active}
-          onChange={(e) => onSave({ is_active: e.target.checked })}
+          onChange={(e) => onToggleActive(e.target.checked)}
           className="h-3.5 w-3.5 accent-pink"
         />
         Visible

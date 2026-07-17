@@ -5,9 +5,10 @@ import { X, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import { useCart } from './useCart'
 import { useUIStore } from '@/store/ui'
 import { useSiteConfig } from '@/hooks/useSiteConfig'
-import { shippingForSubtotal } from '@/data/settings'
+import { amountToFreeShipping, shippingForSubtotal } from '@/lib/policy'
 import { Button, Price } from '@/components/ui'
 import { ProductImage } from '@/features/products/components/ProductImage'
+import { formatINR } from '@/lib/format'
 import { cn } from '@/lib/cn'
 
 /** Slide-over cart. Opened via the header bag button or add-to-cart. */
@@ -27,6 +28,7 @@ export function CartDrawer() {
 
   const shipping = config ? shippingForSubtotal(config, subtotal) : 0
   const total = subtotal + shipping
+  const toFreeShipping = config ? amountToFreeShipping(config, subtotal) : null
 
   function goToCheckout() {
     setOpen(false)
@@ -139,6 +141,20 @@ export function CartDrawer() {
             </div>
 
             <footer className="space-y-3 border-t border-ivory-300 px-5 py-4">
+              {/* Free-shipping nudge — the one place this threshold changes a
+                  decision that's still in the customer's hands. */}
+              {toFreeShipping !== null ? (
+                <p className="rounded-lg bg-marigold-100 px-3 py-2 text-center text-xs font-medium text-marigold-500">
+                  You're {formatINR(toFreeShipping)} away from free shipping!
+                </p>
+              ) : (
+                config &&
+                config.freeShippingOver > 0 && (
+                  <p className="rounded-lg bg-sage-50 px-3 py-2 text-center text-xs font-medium text-sage-400">
+                    Nice — your order ships free 🎉
+                  </p>
+                )
+              )}
               <div className="flex justify-between text-sm text-ink-muted">
                 <span>Subtotal</span>
                 <Price amount={subtotal} size="sm" />

@@ -1,10 +1,19 @@
 import { useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ShoppingBag, MessageCircle, Clock, Sparkles, ChevronLeft } from 'lucide-react'
-import { useProduct } from '../hooks'
+import {
+  ShoppingBag,
+  MessageCircle,
+  Clock,
+  Sparkles,
+  ChevronLeft,
+  RotateCcw,
+} from 'lucide-react'
+import { useProduct, useRelatedProducts } from '../hooks'
 import { ProductImage } from '../components/ProductImage'
+import { ProductGrid } from '../components/ProductGrid'
 import { useCart } from '@/features/cart/useCart'
 import { useSiteConfig } from '@/hooks/useSiteConfig'
+import { TrustBadges } from '@/components/TrustBadges'
 import { Button, Price, Badge, LoadingBlock, EmptyState } from '@/components/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
 import { instagramDmUrl } from '@/lib/links'
@@ -205,8 +214,61 @@ export function ProductDetailPage() {
               </div>
             )}
           </div>
+
+          {/* The one thing that can't be undone after buying, said at the point
+              of deciding. Delivery + payment reassurance live in the badges
+              below — stating them twice within a screen reads as filler. */}
+          {!isDmOnly && (
+            <p className="mt-6 flex gap-2.5 rounded-2xl border border-ivory-300 bg-white/60 p-4 text-sm">
+              <RotateCcw size={16} className="mt-0.5 shrink-0 text-indigo" aria-hidden />
+              <span>
+                <span className="font-medium text-ink">Made to order</span>
+                <span className="text-ink-muted">
+                  {' '}— stitched just for you, so it isn't eligible for return.{' '}
+                  <Link to="/policies" className="stitch-underline text-pink-600">
+                    Read the full policy
+                  </Link>
+                </span>
+              </span>
+            </p>
+          )}
         </div>
       </div>
+
+      <TrustBadges className="mt-14" />
+
+      <RelatedProducts productId={product.id} categorySlug={product.category?.slug} />
     </div>
+  )
+}
+
+/**
+ * "You might also like". Hides itself entirely when there's nothing to show —
+ * an empty rail is worse than no rail.
+ */
+function RelatedProducts({
+  productId,
+  categorySlug,
+}: {
+  productId: string
+  categorySlug?: string
+}) {
+  const { data: related, isLoading } = useRelatedProducts(productId, categorySlug)
+
+  if (isLoading || !related || related.length === 0) return null
+
+  return (
+    <section className="mt-16">
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <h2 className="font-display text-3xl text-indigo">You might also like</h2>
+          <RunningStitch className="mt-3 max-w-[140px] text-pink" />
+        </div>
+        <Link to="/shop" className="stitch-underline text-sm font-semibold text-pink-600">
+          View all
+        </Link>
+      </div>
+      <ProductGrid products={related} />
+    </section>
   )
 }

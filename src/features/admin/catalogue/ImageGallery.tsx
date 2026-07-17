@@ -3,6 +3,8 @@ import { Upload, Trash2, GripVertical, ArrowLeft, ArrowRight } from 'lucide-reac
 import { useUploadImages, useDeleteImage, useReorderImages } from './hooks'
 import { Card, Button } from '@/components/ui'
 import { ProductImage } from '@/features/products/components/ProductImage'
+import { validateImageFiles } from '@/lib/imageFile'
+import { toast } from '@/store/ui'
 import type { ProductImage as ProductImageRow } from '@/types/database'
 
 /**
@@ -40,7 +42,16 @@ export function ImageGallery({
 
   function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return
-    upload.mutate({ productId, files: Array.from(files), startOrder: images.length })
+    const list = Array.from(files)
+    // Reject the whole batch up front: a half-uploaded gallery is worse than a
+    // clear "that photo's too big, try again".
+    const problem = validateImageFiles(list)
+    if (problem) {
+      toast.error(problem)
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
+    upload.mutate({ productId, files: list, startOrder: images.length })
     if (fileRef.current) fileRef.current.value = ''
   }
 

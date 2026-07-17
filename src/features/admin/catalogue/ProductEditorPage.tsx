@@ -34,6 +34,7 @@ export function ProductEditorPage() {
     formState: { errors, isDirty },
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
+    mode: 'onTouched',
     defaultValues: {
       purchase_mode: 'direct',
       stock_type: 'made_to_order',
@@ -137,6 +138,7 @@ export function ProductEditorPage() {
               rows={5}
               placeholder="Shown on the product page — materials, size, care…"
               {...register('description')}
+              error={errors.description?.message}
             />
           </Card>
 
@@ -178,6 +180,7 @@ export function ProductEditorPage() {
                   label="Was-price (₹, optional)"
                   inputMode="numeric"
                   {...register('compare_at_price')}
+                  error={errors.compare_at_price?.message}
                   hint="Shows a struck-through original beside the price."
                 />
               </>
@@ -210,15 +213,29 @@ export function ProductEditorPage() {
               inputMode="numeric"
               placeholder="Leave blank if you don't count stock"
               {...register('stock_quantity')}
+              error={errors.stock_quantity?.message}
             />
             <div>
               <p className="mb-1.5 text-sm font-medium text-ink">Dispatch time (days)</p>
               <div className="grid grid-cols-2 gap-3">
-                <Input placeholder="From" inputMode="numeric" {...register('processing_min_days')} />
-                <Input placeholder="To" inputMode="numeric" {...register('processing_max_days')} />
+                <Input
+                  placeholder="From"
+                  aria-label="Dispatch time from (days)"
+                  inputMode="numeric"
+                  {...register('processing_min_days')}
+                  error={errors.processing_min_days?.message}
+                />
+                <Input
+                  placeholder="To"
+                  aria-label="Dispatch time to (days)"
+                  inputMode="numeric"
+                  {...register('processing_max_days')}
+                  error={errors.processing_max_days?.message}
+                />
               </div>
               <p className="mt-1 text-xs text-ink-faint">
-                Shown on the product page, e.g. “Dispatch in 3–5 days”.
+                How long before you post it. Shown on the product page, e.g. “Dispatch
+                in 3–5 days”. Leave blank to hide.
               </p>
             </div>
           </Card>
@@ -232,6 +249,7 @@ export function ProductEditorPage() {
               label="Sort order"
               inputMode="numeric"
               {...register('sort_order')}
+              error={errors.sort_order?.message}
               hint="Lower numbers appear first in the shop."
             />
           </Card>

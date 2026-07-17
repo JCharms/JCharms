@@ -330,9 +330,36 @@ npm run dev                              # http://localhost:5173
    values ('<the-returned-user-id>', 'Owner');
    ```
    Sign in at `/login` → you land in `/admin`.
-6. **Auth URLs:** Dashboard → Authentication → URL Configuration. Set **Site URL**
-   to your deployed site and add it to **Redirect URLs** (so confirmation and
-   reset links work). Locally this is already handled in `supabase/config.toml`.
+6. **Auth email redirects — do not skip this.** A fresh Supabase project ships
+   with **Site URL = `http://localhost:3000`**, so *every* confirmation and
+   password-reset email from your live site links to localhost until you change
+   it. `supabase/config.toml` does **not** help here: it configures the local
+   stack only.
+
+   **Why it ignores the URL the app asks for:** the app already passes an
+   explicit `redirectTo` on every auth email (see `src/lib/siteUrl.ts`). But
+   Supabase only honours a `redirectTo` that matches the **Redirect URLs**
+   allow-list — anything else is silently dropped and replaced with the **Site
+   URL**. So both fields below have to be set; one alone won't do it.
+
+   Dashboard → Authentication → **URL Configuration**:
+
+   | Field | Value |
+   | --- | --- |
+   | **Site URL** | `https://your-store.example` (canonical, no trailing slash) |
+   | **Redirect URLs** | `https://your-store.example/**`<br>`http://localhost:5173/**` (local dev)<br>`https://*--your-site.netlify.app/**` (deploy previews, optional) |
+
+   Then set **`VITE_SITE_URL=https://your-store.example`** in Netlify → Site
+   settings → Environment variables, and redeploy. That pins every emailed link
+   to the canonical domain regardless of which origin generated it.
+
+   **Verify:** sign up with a real address, open the email, hover the button —
+   the link should read `https://<ref>.supabase.co/auth/v1/verify?...&redirect_to=https%3A%2F%2Fyour-store.example%2F`.
+   If `redirect_to` says `localhost:3000`, the allow-list doesn't match the URL
+   the app asked for; re-check for a typo or a trailing-slash mismatch.
+
+   Where each link lands: confirm-signup → `/` (establishes the session and
+   fires the welcome email); password reset → `/account/reset`.
 
 ### 6.2 Razorpay (payments, INR)
 1. Sign up at **razorpay.com**, complete KYC for live mode (test mode works

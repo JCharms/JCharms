@@ -1,13 +1,23 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Heart } from 'lucide-react'
+import { ArrowRight, Heart, LayoutGrid } from 'lucide-react'
 import { useFeaturedProducts, useCategoryTree } from '../hooks'
 import { ProductGrid } from '../components/ProductGrid'
 import { ReviewsSection } from '@/features/reviews/ReviewsSection'
 import { RunningStitch } from '@/components/ui/RunningStitch'
+import { useUIStore } from '@/store/ui'
+
+/** Tiles shown before we hand off to the full category browser. */
+const MAX_TILES = 5
 
 export function HomePage() {
   const { data: featured, isLoading } = useFeaturedProducts()
   const { data: categories } = useCategoryTree()
+  const openCategories = useUIStore((s) => s.setCategoryMenuOpen)
+
+  // A tile per category stops being a shortcut once there are dozens of them —
+  // show a handful and let the last tile open the searchable browser.
+  const hasOverflow = (categories?.length ?? 0) > MAX_TILES
+  const tiles = hasOverflow ? categories!.slice(0, MAX_TILES) : (categories ?? [])
 
   return (
     <div>
@@ -18,10 +28,10 @@ export function HomePage() {
             <Heart size={13} aria-hidden /> Handmade to order
           </span>
           <h1 className="mt-5 font-display text-5xl leading-[1.05] text-indigo sm:text-6xl">
-            Little bundles of <span className="stitch-underline text-pink">yarn&nbsp;joy</span>.
+            Stitch . Style. <span className="stitch-underline text-pink">Smile</span>.
           </h1>
           <p className="mt-5 max-w-md text-lg text-ink-muted">
-            Crochet keychains, plushies, bouquets and hair accessories — each one
+            Crochet flowers, keychains, plushies, bouquets and hair accessories — each one
             stitched by hand, made to be gifted (or kept).
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -55,10 +65,10 @@ export function HomePage() {
       </section>
 
       {/* Category tiles */}
-      {categories && categories.length > 0 && (
+      {tiles.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {categories.map((cat) => (
+            {tiles.map((cat) => (
               <Link
                 key={cat.id}
                 to={`/shop/${cat.slug}`}
@@ -66,10 +76,27 @@ export function HomePage() {
               >
                 <span className="font-display text-xl text-indigo">{cat.name}</span>
                 <span className="flex items-center gap-1 text-sm text-ink-muted">
-                  Shop now <ArrowRight size={14} className="transition group-hover:translate-x-1" />
+                  {cat.children.length > 0
+                    ? `${cat.children.length} collection${cat.children.length === 1 ? '' : 's'}`
+                    : 'Shop now'}
+                  <ArrowRight size={14} className="transition group-hover:translate-x-1" />
                 </span>
               </Link>
             ))}
+
+            {hasOverflow && (
+              <button
+                onClick={() => openCategories(true)}
+                className="group flex h-32 flex-col justify-end rounded-2xl border border-dashed border-indigo-200 bg-white/60 p-5 text-left transition hover:-translate-y-1 hover:border-pink hover:shadow-lift"
+              >
+                <LayoutGrid size={20} className="mb-auto text-pink" aria-hidden />
+                <span className="font-display text-xl text-indigo">All categories</span>
+                <span className="flex items-center gap-1 text-sm text-ink-muted">
+                  Browse all {categories!.length}
+                  <ArrowRight size={14} className="transition group-hover:translate-x-1" />
+                </span>
+              </button>
+            )}
           </div>
         </section>
       )}

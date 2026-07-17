@@ -51,7 +51,7 @@ class NoopEmailProvider implements EmailProvider {
 
 export function getEmailProvider(): EmailProvider {
   const apiKey = Deno.env.get('RESEND_API_KEY')
-  const from = Deno.env.get('ORDER_EMAIL_FROM') ?? 'J Charms <orders@jcharms.example>'
+  const from = Deno.env.get('ORDER_EMAIL_FROM') ?? 'J Charms <orders@jcharms.in>'
   if (!apiKey) return new NoopEmailProvider()
   return new ResendProvider(apiKey, from)
 }

@@ -24,12 +24,18 @@ Deno.serve(async (req) => {
       .eq('order_number', orderNumber.trim().toUpperCase())
       .maybeSingle()
 
+    // Compare phones as bare 10-digit numbers: the same person types
+    // "+91 98765 43210" one day and "9876543210" the next, and either should
+    // find their order.
+    const toMobile = (v: string) =>
+      v.replace(/[\s()-]/g, '').replace(/^(\+91|91|0)/, '')
+
     // Uniform response whether not-found or contact-mismatch — don't leak which.
     const normalizedContact = String(contact).trim().toLowerCase()
     const matches =
       order &&
       (order.customer_email.toLowerCase() === normalizedContact ||
-        order.customer_phone.replace(/\s+/g, '') === normalizedContact.replace(/\s+/g, ''))
+        toMobile(order.customer_phone) === toMobile(normalizedContact))
 
     if (!matches) {
       return json({ order: null }, 200)

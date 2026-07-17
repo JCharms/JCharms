@@ -17,6 +17,33 @@ interface IncomingItem {
   quantity: number
 }
 
+/**
+ * Re-check the shape of the contact + address here as well as in the browser.
+ * The client-side Zod schema is a courtesy to the customer; this request is
+ * reachable directly, and a malformed address becomes a real parcel that can't
+ * be delivered. Kept intentionally loose — this rejects junk, it doesn't try to
+ * out-guess the customer about their own address.
+ */
+function validateDetails(details: any): string | null {
+  if (!details) return 'Missing contact details.'
+  const name = String(details.customerName ?? '').trim()
+  const email = String(details.customerEmail ?? '').trim()
+  const phone = String(details.customerPhone ?? '').replace(/[\s()-]/g, '')
+  const addr = details.shippingAddress
+
+  if (name.length < 2) return 'Please enter your full name.'
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return 'Please enter a valid email.'
+  if (!/^[6-9]\d{9}$/.test(phone)) return 'Please enter a valid 10-digit mobile number.'
+  if (!addr) return 'Please enter a shipping address.'
+  if (String(addr.line1 ?? '').trim().length < 5) return 'Please enter a complete address.'
+  if (String(addr.city ?? '').trim().length < 2) return 'Please enter your city.'
+  if (String(addr.state ?? '').trim().length < 2) return 'Please choose your state.'
+  if (!/^[1-9]\d{5}$/.test(String(addr.pincode ?? '').trim())) {
+    return 'Please enter a valid 6-digit pincode.'
+  }
+  return null
+}
+
 Deno.serve(async (req) => {
   const pre = handleOptions(req)
   if (pre) return pre
@@ -26,9 +53,8 @@ Deno.serve(async (req) => {
     if (!Array.isArray(items) || items.length === 0) {
       return json({ error: 'Cart is empty.' }, 400)
     }
-    if (!details?.customerName || !details?.customerEmail || !details?.customerPhone) {
-      return json({ error: 'Missing contact details.' }, 400)
-    }
+    const invalid = validateDetails(details)
+    if (invalid) return json({ error: invalid }, 400)
 
     const admin = createAdminClient()
 

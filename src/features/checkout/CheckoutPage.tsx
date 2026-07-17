@@ -8,9 +8,10 @@ import { useCheckout } from './useCheckout'
 import { useCartStore, selectSubtotal } from '@/store/cart'
 import { useSiteConfig } from '@/hooks/useSiteConfig'
 import { useAuthStore } from '@/features/auth/authStore'
-import { shippingForSubtotal } from '@/data/settings'
-import { Button, Input, Textarea, Card, Price } from '@/components/ui'
+import { deliveryEstimateLabel, shippingForSubtotal } from '@/lib/policy'
+import { Button, Input, Select, Textarea, Card, Price } from '@/components/ui'
 import { ProductImage } from '@/features/products/components/ProductImage'
+import { INDIAN_STATES } from '@/lib/indianStates'
 import { formatINR } from '@/lib/format'
 
 export function CheckoutPage() {
@@ -28,6 +29,9 @@ export function CheckoutPage() {
     formState: { errors },
   } = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
+    // Flag mistakes as they leave each field rather than in one wall of red at
+    // the end — this is the longest form on the site.
+    mode: 'onTouched',
     defaultValues: { customerEmail: user?.email ?? '' },
   })
 
@@ -38,6 +42,7 @@ export function CheckoutPage() {
   const shipping = config ? shippingForSubtotal(config, subtotal) : 0
   const total = subtotal + shipping
   const wantsAccount = watch('createAccount')
+  const deliveryEstimate = config ? deliveryEstimateLabel(config) : ''
 
   if (items.length === 0) return null
 
@@ -69,21 +74,81 @@ export function CheckoutPage() {
         <div className="space-y-6">
           <Card className="space-y-4 p-6">
             <h2 className="font-display text-xl text-indigo">Your details</h2>
-            <Input label="Full name" {...register('customerName')} error={errors.customerName?.message} />
+            <Input
+              label="Full name"
+              autoComplete="name"
+              {...register('customerName')}
+              error={errors.customerName?.message}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Email" type="email" {...register('customerEmail')} error={errors.customerEmail?.message} />
-              <Input label="Mobile number" inputMode="numeric" placeholder="10-digit" {...register('customerPhone')} error={errors.customerPhone?.message} />
+              <Input
+                label="Email"
+                type="email"
+                autoComplete="email"
+                {...register('customerEmail')}
+                error={errors.customerEmail?.message}
+                hint="Your order confirmation goes here."
+              />
+              <Input
+                label="Mobile number"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="10-digit"
+                {...register('customerPhone')}
+                error={errors.customerPhone?.message}
+                hint="So the courier can reach you."
+              />
             </div>
           </Card>
 
           <Card className="space-y-4 p-6">
             <h2 className="font-display text-xl text-indigo">Shipping address</h2>
-            <Input label="Address line 1" {...register('line1')} error={errors.line1?.message} />
-            <Input label="Address line 2 (optional)" {...register('line2')} error={errors.line2?.message} />
+            <Input
+              label="Address line 1"
+              autoComplete="address-line1"
+              placeholder="Flat / house no., building, street"
+              {...register('line1')}
+              error={errors.line1?.message}
+            />
+            <Input
+              label="Address line 2 (optional)"
+              autoComplete="address-line2"
+              placeholder="Area, landmark"
+              {...register('line2')}
+              error={errors.line2?.message}
+            />
             <div className="grid gap-4 sm:grid-cols-3">
-              <Input label="City" {...register('city')} error={errors.city?.message} />
-              <Input label="State" {...register('state')} error={errors.state?.message} />
-              <Input label="Pincode" inputMode="numeric" {...register('pincode')} error={errors.pincode?.message} />
+              <Input
+                label="City"
+                autoComplete="address-level2"
+                {...register('city')}
+                error={errors.city?.message}
+              />
+              {/* Was a free-text field, which accepted anything at all. */}
+              <Select
+                label="State"
+                autoComplete="address-level1"
+                defaultValue=""
+                {...register('state')}
+                error={errors.state?.message}
+              >
+                <option value="" disabled>
+                  Choose…
+                </option>
+                {INDIAN_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                label="Pincode"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                maxLength={6}
+                {...register('pincode')}
+                error={errors.pincode?.message}
+              />
             </div>
             <Textarea label="Order note (optional)" rows={3} {...register('customerNote')} error={errors.customerNote?.message} />
           </Card>
@@ -144,6 +209,17 @@ export function CheckoutPage() {
             <Button type="submit" size="lg" fullWidth isLoading={isPlacing}>
               <ShoppingBag size={18} /> Pay {formatINR(total)} securely
             </Button>
+            {/* The two things people ask after paying — said before they do. */}
+            {config && (
+              <p className="text-center text-xs leading-relaxed text-ink-faint">
+                {deliveryEstimate && <>Delivery in {deliveryEstimate}. </>}
+                Handmade to order, so returns aren't available —{' '}
+                <Link to="/policies" className="stitch-underline text-pink-600">
+                  see our policy
+                </Link>
+                .
+              </p>
+            )}
             <Link to="/shop" className="block text-center text-sm text-ink-muted hover:text-indigo">
               Continue shopping
             </Link>

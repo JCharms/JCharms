@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   listProducts,
   listFeaturedProducts,
+  listRelatedProducts,
   getProductBySlug,
   type ProductFilters,
 } from '@/data/products'
@@ -27,6 +28,18 @@ export function useProduct(slug: string) {
     queryKey: queryKeys.product(slug),
     queryFn: () => getProductBySlug(slug),
     enabled: !!slug,
+  })
+}
+
+/** "You might also like" for a product page. Needs the product loaded first. */
+export function useRelatedProducts(
+  productId: string | undefined,
+  categorySlug: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.relatedProducts(productId ?? ''),
+    queryFn: () => listRelatedProducts(productId!, categorySlug),
+    enabled: !!productId,
   })
 }
 

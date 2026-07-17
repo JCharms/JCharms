@@ -4,13 +4,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signIn, requestPasswordReset } from '@/data/auth'
-import { checkIsAdmin } from '@/data/auth'
+import { applySignIn } from '@/features/auth/authStore'
 import { Button, Input, Card } from '@/components/ui'
 import { toast } from '@/store/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.string().trim().min(1, 'Email is required').email('Enter a valid email'),
   password: z.string().min(1, 'Enter your password'),
 })
 type Values = z.infer<typeof schema>
@@ -29,10 +29,17 @@ export function LoginPage() {
   async function onSubmit(values: Values) {
     setLoading(true)
     try {
-      const { user } = await signIn(values.email, values.password)
-      const dest =
-        (location.state as { from?: string } | null)?.from ??
-        (user && (await checkIsAdmin(user.id)) ? '/admin' : '/account')
+      const { session } = await signIn(values.email, values.password)
+      // Settle the auth store before navigating — otherwise the guard on the
+      // destination can run against a store that hasn't caught up yet.
+      const isAdmin = await applySignIn(session)
+      const from = (location.state as { from?: string } | null)?.from
+
+      // Honour a deep link back to wherever they were headed, except when a
+      // customer was bounced off /admin — sending them back would just bounce
+      // them again.
+      const canReturn = !!from && (isAdmin || !from.startsWith('/admin'))
+      const dest = canReturn ? from! : isAdmin ? '/admin' : '/account'
       navigate(dest, { replace: true })
     } catch (err) {
       toast.error((err as Error).message || 'Could not sign in.')
@@ -42,10 +49,14 @@ export function LoginPage() {
   }
 
   async function onForgot() {
-    const email = getValues('email')
-    if (!email) return toast.info('Enter your email first, then tap reset.')
+    // This button skips the form's own submit, so it has to check the address
+    // itself — otherwise the reset silently goes nowhere.
+    const parsed = schema.shape.email.safeParse(getValues('email'))
+    if (!parsed.success) {
+      return toast.info('Type your email in the box above first, then tap reset.')
+    }
     try {
-      await requestPasswordReset(email)
+      await requestPasswordReset(parsed.data)
       toast.success('Check your inbox for a reset link.')
     } catch (err) {
       toast.error((err as Error).message)
