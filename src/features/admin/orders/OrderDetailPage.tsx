@@ -16,7 +16,7 @@ import {
   isTerminal,
 } from '@/data/orderStateMachine'
 import { formatDateTime, formatINR } from '@/lib/format'
-import type { PaymentStatus, ShippingAddress } from '@/types/database'
+import type { ShippingAddress } from '@/types/database'
 
 export function OrderDetailPage() {
   const { id = '' } = useParams()
@@ -36,6 +36,8 @@ export function OrderDetailPage() {
 
   const addr = order.shipping_address as unknown as ShippingAddress
   const moves = nextStatuses(order.order_status)
+  const alreadyShipped =
+    order.order_status === 'shipped' || order.order_status === 'delivered'
 
   return (
     <div className="space-y-6">
@@ -151,20 +153,44 @@ export function OrderDetailPage() {
               isLoading={setTracking.isPending}
               onClick={() => setTracking.mutate({ order, trackingNumber: tracking, courier })}
             >
-              Save tracking & mark shipped
+              {alreadyShipped ? 'Update tracking number' : 'Save tracking & mark shipped'}
             </Button>
+            <p className="text-xs text-ink-faint">
+              {alreadyShipped
+                ? 'This order is already marked shipped — saving just updates the number.'
+                : 'Saving a tracking number moves this order to Shipped and emails the customer.'}
+            </p>
           </Card>
 
           <Card className="space-y-3 p-6">
             <h2 className="font-display text-lg text-indigo">Payment</h2>
-            <Select
-              value={order.payment_status}
-              onChange={(e) => updatePayment.mutate({ id: order.id, to: e.target.value as PaymentStatus })}
-            >
-              {(['pending', 'paid', 'failed', 'refunded'] as PaymentStatus[]).map((s) => (
-                <option key={s} value={s}>{PAYMENT_STATUS_LABEL[s]}</option>
-              ))}
-            </Select>
+            <div className="flex items-center justify-between">
+              <Badge tone={order.payment_status === 'paid' ? 'sage' : 'neutral'}>
+                {PAYMENT_STATUS_LABEL[order.payment_status]}
+              </Badge>
+              <span className="text-xs text-ink-faint">Confirmed by Razorpay</span>
+            </div>
+            <p className="text-xs text-ink-faint">
+              Payment status comes from Razorpay's signed response and can't be changed by hand.
+            </p>
+            {order.payment_status === 'paid' && (
+              <Button
+                size="sm"
+                variant="outline"
+                isLoading={updatePayment.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      'Record a refund for this order? Do this only after you have actually issued the refund in the Razorpay dashboard.',
+                    )
+                  ) {
+                    updatePayment.mutate({ order, to: 'refunded' })
+                  }
+                }}
+              >
+                Record a refund
+              </Button>
+            )}
           </Card>
 
           <Card className="space-y-3 p-6">

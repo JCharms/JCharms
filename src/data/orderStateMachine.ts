@@ -12,9 +12,16 @@ import type { OrderStatus, PaymentStatus } from '@/types/database'
  * the send-order-status-email Edge Function.
  */
 
-/** Allowed forward/again transitions for fulfillment status. */
+/**
+ * Allowed forward/again transitions for fulfillment status.
+ *
+ * `placed → shipped` is intentional: a ready-to-ship charm has nothing to
+ * "make", so the owner posts it straight away and enters the tracking number —
+ * that action marks it shipped without a detour through "Being made". The
+ * intermediate step stays available for made-to-order pieces.
+ */
 const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
-  placed: ['processing', 'cancelled'],
+  placed: ['processing', 'shipped', 'cancelled'],
   processing: ['shipped', 'cancelled'],
   shipped: ['delivered'],
   delivered: [], // terminal

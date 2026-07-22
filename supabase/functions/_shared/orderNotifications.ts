@@ -83,7 +83,7 @@ export async function sendPaidOrderNotifications(
 
   // Customer receipt.
   try {
-    const { subject, html } = orderConfirmationEmail(order)
+    const { subject, html } = orderConfirmationEmail(order, items ?? [])
     await email.send({ to: order.customer_email, subject, html })
     anySent = true
   } catch (err) {

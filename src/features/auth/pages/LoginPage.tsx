@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signIn, requestPasswordReset } from '@/data/auth'
-import { applySignIn } from '@/features/auth/authStore'
+import { applySignIn, useAuthStore } from '@/features/auth/authStore'
 import { Button, Input, Card } from '@/components/ui'
 import { toast } from '@/store/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
@@ -19,12 +19,26 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const [loading, setLoading] = useState(false)
+  const user = useAuthStore((s) => s.user)
+
+  // Already signed in on arrival → don't show the login form; send them on. The
+  // ref means this only fires for a pre-existing session, never for the sign-in
+  // that happens *on* this page (which routes itself to the right destination).
+  const authedOnMount = useRef(user !== null)
+  useEffect(() => {
+    if (authedOnMount.current) navigate('/account', { replace: true })
+  }, [navigate])
+
+  const prefillEmail = (location.state as { email?: string } | null)?.email
   const {
     register,
     handleSubmit,
     getValues,
     formState: { errors },
-  } = useForm<Values>({ resolver: zodResolver(schema) })
+  } = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: prefillEmail ? { email: prefillEmail } : undefined,
+  })
 
   async function onSubmit(values: Values) {
     setLoading(true)

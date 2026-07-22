@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signUp } from '@/data/auth'
+import { useAuthStore } from '@/features/auth/authStore'
 import { Button, Input, Card } from '@/components/ui'
 import { toast } from '@/store/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
@@ -39,6 +40,16 @@ type Values = z.infer<typeof schema>
 export function SignupPage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const user = useAuthStore((s) => s.user)
+
+  // Already signed in? Creating a *second* account without signing out first is
+  // what let a live admin session bleed into a brand-new signup. Bounce them to
+  // their account — to make another account, sign out first.
+  const authedOnMount = useRef(user !== null)
+  useEffect(() => {
+    if (authedOnMount.current) navigate('/account', { replace: true })
+  }, [navigate])
+
   const {
     register,
     handleSubmit,

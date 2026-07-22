@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabaseClient'
 import { unwrap, unwrapList } from './_helpers'
-import { canTransition } from './orderStateMachine'
+import { canTransition, canTransitionPayment } from './orderStateMachine'
 import type { Order, OrderStatus, PaymentStatus, TablesUpdate } from '@/types/database'
 import type { OrderWithItems, CartLine, CheckoutDetails } from '@/types/domain'
 
@@ -16,11 +16,26 @@ import type { OrderWithItems, CartLine, CheckoutDetails } from '@/types/domain'
 const ORDER_WITH_ITEMS = '*, items:order_items(*)' as const
 
 // ── Customer (authenticated) ────────────────────────────────────────────────
+/**
+ * A signed-in customer's own order history.
+ *
+ * Scoped to `user_id` explicitly, not left to RLS: the admin read policy grants
+ * an owner-account SELECT over *every* order, so without this filter the shop
+ * owner's personal "My orders" page would list the whole store. RLS still backs
+ * this up at the database — this is the page saying "only mine", not the
+ * boundary itself.
+ */
 export async function getMyOrders(): Promise<OrderWithItems[]> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const uid = session?.user?.id
+  if (!uid) return []
   return unwrapList(
     await supabase
       .from('orders')
       .select(ORDER_WITH_ITEMS)
+      .eq('user_id', uid)
       .order('placed_at', { ascending: false }),
     'getMyOrders',
   ) as OrderWithItems[]
@@ -150,15 +165,23 @@ export async function adminUpdateOrderStatus(
   return updated
 }
 
-/** Enter tracking + courier and advance to 'shipped' (fires shipped email). */
+/**
+ * Enter tracking + courier and advance to 'shipped'. Adding a tracking number
+ * *is* the "I've posted it" action, so from either 'placed' or 'processing' it
+ * moves the order straight to shipped and fires the shipped email once. Editing
+ * tracking on an already-shipped order just updates the number — it doesn't
+ * re-send the email.
+ */
 export async function adminSetTracking(
   order: Pick<Order, 'id' | 'order_status'>,
   trackingNumber: string,
   courier = 'India Post',
 ): Promise<Order> {
   const patch: TablesUpdate<'orders'> = { tracking_number: trackingNumber, courier }
-  // Advance to shipped if it's a legal move and not already shipped/delivered.
-  if (canTransition(order.order_status, 'shipped')) {
+  const alreadyShipped =
+    order.order_status === 'shipped' || order.order_status === 'delivered'
+  const willShip = !alreadyShipped && canTransition(order.order_status, 'shipped')
+  if (willShip) {
     patch.order_status = 'shipped'
     patch.shipped_at = new Date().toISOString()
   }
@@ -166,16 +189,34 @@ export async function adminSetTracking(
     await supabase.from('orders').update(patch).eq('id', order.id).select().single(),
     'adminSetTracking',
   )
-  if (patch.order_status === 'shipped') await notifyStatusEmail(order.id, 'shipped')
+  if (willShip) await notifyStatusEmail(order.id, 'shipped')
   return updated
 }
 
+/**
+ * Payment status is owned by Razorpay — the storefront only ever sets it from a
+ * verified signature or webhook. The one legitimate manual move is recording a
+ * refund the owner issued out-of-band in the Razorpay dashboard, so this
+ * validates against the payment state machine and refuses anything else (you
+ * cannot, for instance, hand-flip a verified `paid` order to `failed`).
+ */
 export async function adminUpdatePaymentStatus(
-  id: string,
+  order: Pick<Order, 'id' | 'payment_status'>,
   to: PaymentStatus,
 ): Promise<Order> {
+  if (!canTransitionPayment(order.payment_status, to)) {
+    throw new Error(
+      `Payment status can't move ${order.payment_status} → ${to}. ` +
+        'Payment state is set by Razorpay; only a refund can be recorded manually.',
+    )
+  }
   return unwrap(
-    await supabase.from('orders').update({ payment_status: to }).eq('id', id).select().single(),
+    await supabase
+      .from('orders')
+      .update({ payment_status: to })
+      .eq('id', order.id)
+      .select()
+      .single(),
     'adminUpdatePaymentStatus',
   )
 }

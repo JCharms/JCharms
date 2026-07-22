@@ -72,10 +72,15 @@ export function useSetTracking() {
 export function useUpdatePaymentStatus() {
   const invalidate = useOrderInvalidation()
   return useMutation({
-    mutationFn: ({ id, to }: { id: string; to: PaymentStatus }) =>
-      adminUpdatePaymentStatus(id, to),
-    onSuccess: () => {
-      toast.success('Payment status updated.')
+    mutationFn: ({
+      order,
+      to,
+    }: {
+      order: Pick<Order, 'id' | 'payment_status'>
+      to: PaymentStatus
+    }) => adminUpdatePaymentStatus(order, to),
+    onSuccess: (_data, { to }) => {
+      toast.success(to === 'refunded' ? 'Refund recorded.' : 'Payment status updated.')
       invalidate()
     },
     onError: (e) => toast.error((e as Error).message),

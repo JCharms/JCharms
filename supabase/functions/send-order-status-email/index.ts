@@ -31,8 +31,16 @@ Deno.serve(async (req) => {
       .single()
     if (error) throw error
 
+    // Item names let the customer recognise which order this update is about.
+    const { data: items } = await admin
+      .from('order_items')
+      .select('product_name, variant_name, quantity, line_total')
+      .eq('order_id', orderId)
+
     const { subject, html } =
-      status === 'shipped' ? orderShippedEmail(order) : orderStatusEmail(order, status)
+      status === 'shipped'
+        ? orderShippedEmail(order, items ?? [])
+        : orderStatusEmail(order, status, items ?? [])
 
     await getEmailProvider().send({ to: order.customer_email, subject, html })
     return json({ ok: true })

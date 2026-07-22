@@ -4,6 +4,8 @@ interface OrderLike {
   order_number: string
   customer_name: string
   total: number
+  subtotal?: number | null
+  shipping_fee?: number | null
   tracking_number?: string | null
   courier?: string | null
 }
@@ -77,19 +79,65 @@ function shell(
 const orderTag = (n: string) =>
   `<span style="font-family:'JetBrains Mono',monospace;background:#FEF0F4;color:#D02259;padding:4px 10px;border-radius:8px;font-weight:600;">${n}</span>`
 
-export function orderConfirmationEmail(order: OrderLike): { subject: string; html: string } {
+/**
+ * The "what's in this order" recap shared by every customer email. An order
+ * number is unambiguous for us but means nothing to a customer scanning their
+ * inbox — the product names are what tell them which order this note is about.
+ * Returns '' when there are no items so callers can drop it in unconditionally.
+ */
+function customerItemsTable(items: OrderItemLike[]): string {
+  if (!items || items.length === 0) return ''
+  const rows = items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #EEE3CD;">
+            ${esc(item.product_name)}${
+              item.variant_name ? `<span style="color:#8A8AA3;"> · ${esc(item.variant_name)}</span>` : ''
+            }<span style="color:#8A8AA3;"> × ${esc(item.quantity)}</span>
+          </td>
+          <td style="padding:8px 0;border-bottom:1px solid #EEE3CD;text-align:right;white-space:nowrap;">
+            ${inr(item.line_total)}
+          </td>
+        </tr>`,
+    )
+    .join('')
+  return `<table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0 4px;">${rows}</table>`
+}
+
+export function orderConfirmationEmail(
+  order: OrderLike,
+  items: OrderItemLike[] = [],
+): { subject: string; html: string } {
+  const totals =
+    order.subtotal != null
+      ? `<table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:4px;">
+           <tr><td style="padding:2px 0;color:#565676;">Subtotal</td>
+               <td style="padding:2px 0;text-align:right;">${inr(order.subtotal)}</td></tr>
+           <tr><td style="padding:2px 0;color:#565676;">Shipping</td>
+               <td style="padding:2px 0;text-align:right;">${
+                 Number(order.shipping_fee ?? 0) === 0 ? 'Free' : inr(order.shipping_fee ?? 0)
+               }</td></tr>
+           <tr><td style="padding:6px 0;font-weight:600;border-top:1px solid #EEE3CD;">Total paid</td>
+               <td style="padding:6px 0;text-align:right;font-weight:600;border-top:1px solid #EEE3CD;">${inr(order.total)}</td></tr>
+         </table>`
+      : `<p>Payment received: <strong>${inr(order.total)}</strong>.</p>`
   return {
     subject: `Your J Charms order ${order.order_number} is confirmed 🧶`,
     html: shell(
       `Thank you, ${esc(order.customer_name)}!`,
-      `<p>We've received your order ${orderTag(order.order_number)} and payment of
-        <strong>${inr(order.total)}</strong>. We'll start stitching soon!</p>
-       <p style="color:#565676;">You'll get another note the moment it ships. You can also track it anytime with your order number.</p>`,
+      `<p>We've received your order ${orderTag(order.order_number)} and we'll start stitching soon!</p>
+       ${customerItemsTable(items)}
+       ${totals}
+       <p style="color:#565676;margin-top:16px;">You'll get another note the moment it ships. You can also track it anytime with your order number.</p>`,
     ),
   }
 }
 
-export function orderShippedEmail(order: OrderLike): { subject: string; html: string } {
+export function orderShippedEmail(
+  order: OrderLike,
+  items: OrderItemLike[] = [],
+): { subject: string; html: string } {
   const courier = esc(order.courier ?? 'India Post')
   const tracking = order.tracking_number
     ? `<p>Tracking number: <strong>${esc(order.tracking_number)}</strong> (${courier})</p>`
@@ -99,6 +147,7 @@ export function orderShippedEmail(order: OrderLike): { subject: string; html: st
     html: shell(
       `It's shipped, ${esc(order.customer_name)}!`,
       `<p>Your order ${orderTag(order.order_number)} has been handed to ${courier}.</p>
+       ${customerItemsTable(items)}
        ${tracking}
        <p style="color:#565676;">Pan-India delivery usually takes a few days. Thank you for your patience 💕</p>`,
     ),
@@ -108,6 +157,7 @@ export function orderShippedEmail(order: OrderLike): { subject: string; html: st
 export function orderStatusEmail(
   order: OrderLike,
   status: string,
+  items: OrderItemLike[] = [],
 ): { subject: string; html: string } {
   const messages: Record<string, string> = {
     processing: `We've started making your order ${orderTag(order.order_number)} by hand.`,
@@ -118,7 +168,8 @@ export function orderStatusEmail(
     subject: `Update on your J Charms order ${order.order_number}`,
     html: shell(
       `Hi ${esc(order.customer_name)},`,
-      `<p>${messages[status] ?? `Your order status is now: <strong>${status}</strong>.`}</p>`,
+      `<p>${messages[status] ?? `Your order status is now: <strong>${status}</strong>.`}</p>
+       ${customerItemsTable(items)}`,
     ),
   }
 }

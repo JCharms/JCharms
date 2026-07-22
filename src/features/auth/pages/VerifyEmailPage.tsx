@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { MailCheck } from 'lucide-react'
 import { resendConfirmation } from '@/data/auth'
+import { useAuthStore } from '@/features/auth/authStore'
 import { Button, Card } from '@/components/ui'
 import { toast } from '@/store/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
@@ -11,11 +12,35 @@ import { RunningStitch } from '@/components/ui/RunningStitch'
  * created but dormant until the emailed link is clicked — that link lands on the
  * landing page (emailRedirectTo in signUp), where a session is established and
  * the welcome email fires.
+ *
+ * If the link is opened in *this* browser (any tab), Supabase broadcasts the new
+ * session across tabs, `onAuthStateChange` updates the store, and the effect
+ * below whisks the user home — no manual refresh. Confirming on a *different*
+ * device (phone) can't establish a session here, so we also offer a plain sign-in
+ * link for that case.
  */
 export function VerifyEmailPage() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
   const email = (location.state as { email?: string } | null)?.email
   const [resending, setResending] = useState(false)
+
+  // Whether a session already existed the moment this page mounted. If it did,
+  // the visitor is simply already logged in (they navigated here by hand, or
+  // signed up in another tab while still signed in elsewhere) — we must NOT
+  // claim their email was "just verified", because no verification happened
+  // here. Only a null → signed-in transition on THIS page is a real
+  // confirmation (the emailed link opened in this browser).
+  const authedOnMount = useRef(user !== null)
+
+  useEffect(() => {
+    if (!user) return
+    if (!authedOnMount.current) {
+      toast.success('Email confirmed — welcome to J Charms! 🧶')
+    }
+    navigate('/', { replace: true })
+  }, [user, navigate])
 
   async function onResend() {
     if (!email) return toast.info('Head back to sign up and try again.')
@@ -51,6 +76,17 @@ export function VerifyEmailPage() {
         <Button variant="outline" fullWidth onClick={onResend} isLoading={resending}>
           Resend the link
         </Button>
+        <p className="border-t border-ivory-300 pt-4 text-sm text-ink-muted">
+          Confirmed it on your phone?{' '}
+          <Link
+            to="/login"
+            state={email ? { email } : undefined}
+            className="stitch-underline font-semibold text-pink-600"
+          >
+            Sign in here
+          </Link>{' '}
+          to finish on this device.
+        </p>
       </Card>
       <p className="mt-6 text-center text-sm text-ink-muted">
         Wrong address?{' '}

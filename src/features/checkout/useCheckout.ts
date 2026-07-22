@@ -18,7 +18,6 @@ export function useCheckout() {
   const navigate = useNavigate()
   const [isPlacing, setPlacing] = useState(false)
   const items = useCartStore((s) => s.items)
-  const clear = useCartStore((s) => s.clear)
 
   async function placeOrder(values: CheckoutFormValues) {
     if (items.length === 0) {
@@ -74,6 +73,21 @@ export function useCheckout() {
         notes: { order_number: order.orderNumber },
         theme: { color: '#F2618B' },
         handler: async (response) => {
+          // Razorpay only calls this after a successful capture. The browser
+          // verify is a fast-path courtesy; the webhook is the authoritative
+          // confirmation and the emails come from there too. So we always land
+          // the customer on the thank-you page — a transient verify error must
+          // never strand someone who has already paid on the checkout form.
+          const summary = {
+            items: items.map((i) => ({
+              name: i.name,
+              variantName: i.variantName,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+            })),
+            subtotal: items.reduce((s, i) => s + i.unitPrice * i.quantity, 0),
+            total: order.amount / 100,
+          }
           try {
             await verifyPayment({
               orderId: order.orderId,
@@ -81,12 +95,15 @@ export function useCheckout() {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             })
-            clear()
-            navigate(`/order-confirmed/${order.orderNumber}`)
           } catch (err) {
-            toast.error((err as Error).message || 'Payment could not be verified.')
+            console.error('[checkout] browser verify failed; webhook will finalise:', err)
           } finally {
             setPlacing(false)
+            // Navigate with the cart still full: the confirmation page empties it
+            // on arrival. Clearing it here instead would empty the cart while
+            // CheckoutPage is still mounted, tripping its empty-cart guard, which
+            // would redirect to /shop and clobber this navigation.
+            navigate(`/order-confirmed/${order.orderNumber}`, { state: { summary } })
           }
         },
         modal: { ondismiss: () => setPlacing(false) },
