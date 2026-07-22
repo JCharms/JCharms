@@ -17,6 +17,11 @@ interface IncomingItem {
   quantity: number
 }
 
+/** Per-line sanity bound. A handmade shop does not sell 10,000 of anything. */
+const MAX_LINE_QUANTITY = 50
+/** Guards against a runaway cart payload before we even hit the database. */
+const MAX_CART_LINES = 50
+
 /**
  * Re-check the shape of the contact + address here as well as in the browser.
  * The client-side Zod schema is a courtesy to the customer; this request is
@@ -53,6 +58,9 @@ Deno.serve(async (req) => {
     if (!Array.isArray(items) || items.length === 0) {
       return json({ error: 'Cart is empty.' }, 400)
     }
+    if (items.length > MAX_CART_LINES) {
+      return json({ error: 'That cart is too large — please order in smaller batches.' }, 400)
+    }
     const invalid = validateDetails(details)
     if (invalid) return json({ error: invalid }, 400)
 
@@ -85,9 +93,55 @@ Deno.serve(async (req) => {
       if (product.purchase_mode === 'dm_only') {
         throw new Error(`"${product.name}" is a custom, DM-only item.`)
       }
-      const variant = item.variantId ? variantMap.get(item.variantId) : null
+
+      // Quantity must be a real, sane number. Without the isFinite guard a
+      // non-numeric quantity yields NaN, which silently poisons subtotal ->
+      // total -> the amount sent to Razorpay. The cap is a sanity bound on a
+      // handmade catalogue, not a stock check — that comes below.
+      const quantity = Math.floor(Number(item.quantity))
+      if (!Number.isFinite(quantity) || quantity < 1 || quantity > MAX_LINE_QUANTITY) {
+        throw new Error(
+          `Please choose a quantity between 1 and ${MAX_LINE_QUANTITY} for "${product.name}".`,
+        )
+      }
+
+      // A variant id must belong to THIS product. Without this check a caller
+      // could pair an expensive product with a cheap variant from an unrelated
+      // one and have price_override applied — the client picks both ids, so
+      // "they came from the same page" is not something we can assume here.
+      let variant = null
+      if (item.variantId) {
+        variant = variantMap.get(item.variantId) ?? null
+        if (!variant || variant.product_id !== product.id) {
+          throw new Error(`That option is no longer available for "${product.name}".`)
+        }
+        if (!variant.is_active) {
+          throw new Error(`"${variant.name}" is no longer available for "${product.name}".`)
+        }
+      }
+
+      // Stock, where it is actually tracked. Made-to-order items are stitched
+      // on demand and have no ceiling; ready_stock items with a number do.
+      // A variant's own count wins when set, since that is the thing on a shelf.
+      if (product.stock_type === 'ready_stock') {
+        const available = variant?.stock_quantity ?? product.stock_quantity
+        if (available !== null && available !== undefined) {
+          if (available <= 0) {
+            throw new Error(`"${product.name}" has just sold out.`)
+          }
+          if (quantity > available) {
+            throw new Error(
+              `Only ${available} left of "${product.name}" — please reduce the quantity.`,
+            )
+          }
+        }
+      }
+
       const unitPrice = Number(variant?.price_override ?? product.base_price)
-      const quantity = Math.max(1, Math.floor(item.quantity))
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        throw new Error(`"${product.name}" is mispriced — please contact us.`)
+      }
+
       const lineTotal = unitPrice * quantity
       subtotal += lineTotal
       return {
@@ -112,6 +166,12 @@ Deno.serve(async (req) => {
     const shippingFee = freeOver > 0 && subtotal >= freeOver ? 0 : flatShipping
     const total = subtotal + shippingFee
 
+    // Last line of defence before we ask Razorpay to charge someone. A NaN or
+    // negative here would otherwise surface as an opaque gateway error.
+    if (!Number.isFinite(total) || total <= 0) {
+      throw new Error('We could not price this order. Please refresh and try again.')
+    }
+
     // 4. Persist the order (status placed / payment pending).
     const { data: order, error: oErr } = await admin
       .from('orders')
@@ -135,7 +195,13 @@ Deno.serve(async (req) => {
     const { error: iErr } = await admin
       .from('order_items')
       .insert(orderItems.map((oi) => ({ ...oi, order_id: order.id })))
-    if (iErr) throw iErr
+    if (iErr) {
+      // The order row is already committed. Leaving it behind would show the
+      // owner an empty order she can't fulfil and can't explain, so bin it —
+      // nothing has been charged at this point.
+      await admin.from('orders').delete().eq('id', order.id)
+      throw iErr
+    }
 
     // 5. Create the Razorpay order for the authoritative total.
     const payment = getPaymentProvider()

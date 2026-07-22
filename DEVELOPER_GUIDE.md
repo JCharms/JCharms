@@ -311,11 +311,17 @@ npm run dev                              # http://localhost:5173
      RAZORPAY_KEY_ID=... RAZORPAY_KEY_SECRET=... RAZORPAY_WEBHOOK_SECRET=... \
      RESEND_API_KEY=re_... \
      ORDER_EMAIL_FROM="J Charms <orders@yourdomain.com>" \
+     ORDER_NOTIFY_TO="owner@yourdomain.com" \
      SITE_URL="https://your-store.example" \
      INSTAGRAM_URL="https://instagram.com/j_.charms"
    ```
-   (`SITE_URL`/`INSTAGRAM_URL` are optional — they just make the welcome email's
-   button/link point at your real site.)
+   **`ORDER_NOTIFY_TO` is where the shop owner's "new order" alert goes** — set it
+   before taking real payments, or nobody is told an order came in. The customer
+   still gets their receipt; the omission only shows up as a warning in the
+   function logs. Comma-separate to alert more than one person.
+
+   (`SITE_URL`/`INSTAGRAM_URL` are optional — they point the welcome email's
+   button and the owner alert's "Open in dashboard" button at your real site.)
 5. **Create your admin user:**
    ```bash
    # create the auth user with the service_role key
@@ -469,7 +475,8 @@ sender_name = "J Charms"
 | `RAZORPAY_WEBHOOK_SECRET` | Verify the Razorpay webhook HMAC |
 | `RESEND_API_KEY` | Send order/welcome emails via Resend API |
 | `ORDER_EMAIL_FROM` | "From" address (verified Resend domain) |
-| `SITE_URL` / `INSTAGRAM_URL` | *(optional)* links in the welcome email |
+| `ORDER_NOTIFY_TO` | Owner's new-order alert address (comma-separate for several) |
+| `SITE_URL` / `INSTAGRAM_URL` | *(optional)* links in welcome + owner-alert emails |
 
 ---
 

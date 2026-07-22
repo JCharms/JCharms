@@ -7,6 +7,7 @@ import { ProductImage } from './ProductImage'
 import { useCart } from '@/features/cart/useCart'
 import { useSiteConfig } from '@/hooks/useSiteConfig'
 import { instagramDmUrl } from '@/lib/links'
+import { isSoldOut } from '@/lib/stock'
 import { cn } from '@/lib/cn'
 import type { ProductWithRelations } from '@/types/domain'
 
@@ -22,11 +23,16 @@ export function ProductCard({ product }: { product: ProductWithRelations }) {
 
   const isDmOnly = product.purchase_mode === 'dm_only'
   const hasVariants = product.variants.length > 0
+  // With variants, the card is sold out only when every option is gone —
+  // otherwise the shopper can still pick a live one on the detail page.
+  const soldOut = hasVariants
+    ? product.variants.every((v) => isSoldOut(product, v))
+    : isSoldOut(product)
 
   function handleAdd(e: React.MouseEvent) {
     e.preventDefault()
     // Products with choices route to the detail page to pick a variant.
-    if (hasVariants) return
+    if (hasVariants || soldOut) return
     addProduct(product, null, 1)
     const el = btnRef.current
     el?.classList.remove('animate-pop')
@@ -47,11 +53,22 @@ export function ProductCard({ product }: { product: ProductWithRelations }) {
         <ProductImage
           image={product.images[0]}
           name={product.name}
-          className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]"
+          className={cn(
+            'aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]',
+            // Desaturating reads as "gone" at a glance, before any label is read.
+            soldOut && 'opacity-60 grayscale',
+          )}
         />
+        {soldOut && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="rounded-full bg-indigo/85 px-4 py-1.5 text-sm font-semibold text-ivory">
+              Sold out
+            </span>
+          </div>
+        )}
         <div className="absolute left-2 top-2 flex flex-col gap-1">
           {product.is_featured && <Badge tone="marigold">Loved</Badge>}
-          {product.stock_type === 'made_to_order' && (
+          {!soldOut && product.stock_type === 'made_to_order' && (
             <Badge tone="indigo">Made to order</Badge>
           )}
         </div>
@@ -87,8 +104,15 @@ export function ProductCard({ product }: { product: ProductWithRelations }) {
             <button
               ref={btnRef}
               onClick={handleAdd}
-              aria-label={hasVariants ? `Choose options for ${product.name}` : `Add ${product.name} to bag`}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-pink text-white shadow-soft transition hover:bg-pink-500 hover:shadow-lift"
+              disabled={soldOut}
+              aria-label={
+                soldOut
+                  ? `${product.name} is sold out`
+                  : hasVariants
+                    ? `Choose options for ${product.name}`
+                    : `Add ${product.name} to bag`
+              }
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-pink text-white shadow-soft transition hover:bg-pink-500 hover:shadow-lift disabled:cursor-not-allowed disabled:bg-ink-faint disabled:shadow-none disabled:hover:bg-ink-faint"
             >
               <Plus size={18} />
             </button>

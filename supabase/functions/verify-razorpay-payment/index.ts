@@ -1,13 +1,19 @@
 import { handleOptions, json } from '../_shared/cors.ts'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 import { getPaymentProvider } from '../_shared/services/payment.ts'
-import { getEmailProvider } from '../_shared/services/email.ts'
-import { orderConfirmationEmail } from '../_shared/emailTemplates.ts'
+import { sendPaidOrderNotifications } from '../_shared/orderNotifications.ts'
 
 /**
  * Verifies the Razorpay payment signature returned by Checkout, then marks the
- * order paid and emails a confirmation. Signature verification is the security
- * boundary — an unverified callback never flips payment_status to 'paid'.
+ * order paid and sends the confirmation emails. Signature verification is the
+ * security boundary — an unverified callback never flips payment_status to
+ * 'paid'. The browser only relays Razorpay's signed values; the secret used to
+ * check them stays here.
+ *
+ * This is the *fast* confirmation path: the customer usually has their receipt
+ * before they leave the thank-you page. The razorpay-webhook function is the
+ * reliable one, covering a customer who closed the tab. Both call the same
+ * once-only notifier, so whichever wins the race, the emails go out exactly once.
  */
 Deno.serve(async (req) => {
   const pre = handleOptions(req)
@@ -50,12 +56,11 @@ Deno.serve(async (req) => {
       .single()
     if (error) throw error
 
-    // Confirmation email — best-effort, never blocks the success response.
-    try {
-      const { subject, html } = orderConfirmationEmail(order)
-      await getEmailProvider().send({ to: order.customer_email, subject, html })
-    } catch (mailErr) {
-      console.error('[verify-razorpay-payment] email failed', mailErr)
+    // Customer receipt + owner alert. Best-effort and internally guarded
+    // against double-sending; never blocks the success response.
+    const notified = await sendPaidOrderNotifications(admin, order.id)
+    if (notified !== 'sent') {
+      console.log(`[verify-razorpay-payment] notifications ${notified} for ${order.order_number}`)
     }
 
     return json({ orderNumber: order.order_number })

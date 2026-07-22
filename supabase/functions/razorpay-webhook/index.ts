@@ -1,6 +1,7 @@
 import { json } from '../_shared/cors.ts'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 import { getPaymentProvider } from '../_shared/services/payment.ts'
+import { sendPaidOrderNotifications } from '../_shared/orderNotifications.ts'
 
 /**
  * Razorpay webhook — the source of truth for payment state, resilient to a
@@ -42,6 +43,23 @@ Deno.serve(async (req) => {
           .update({ payment_status: 'paid', razorpay_payment_id: paymentId })
           .eq('razorpay_order_id', rzpOrderId)
           .neq('payment_status', 'paid') // idempotent
+
+        // Notify separately from the update above, and unconditionally: the
+        // update matches nothing when the order is *already* paid, but "already
+        // paid" does not mean "already emailed" — the browser path may have
+        // marked it paid and then failed to send. sendPaidOrderNotifications
+        // does its own once-only claim, so calling it on every delivery of this
+        // event (Razorpay retries) is safe and closes that gap.
+        const { data: order } = await admin
+          .from('orders')
+          .select('id, order_number')
+          .eq('razorpay_order_id', rzpOrderId)
+          .maybeSingle()
+
+        if (order) {
+          const notified = await sendPaidOrderNotifications(admin, order.id)
+          console.log(`[razorpay-webhook] notifications ${notified} for ${order.order_number}`)
+        }
         break
       }
       case 'payment.failed': {

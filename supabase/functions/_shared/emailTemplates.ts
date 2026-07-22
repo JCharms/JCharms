@@ -8,7 +8,49 @@ interface OrderLike {
   courier?: string | null
 }
 
-const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`
+/** Shipping address JSONB, as stored on the order. */
+interface AddressLike {
+  line1?: string | null
+  line2?: string | null
+  city?: string | null
+  state?: string | null
+  pincode?: string | null
+}
+
+interface OrderItemLike {
+  product_name: string
+  variant_name?: string | null
+  quantity: number
+  line_total: number
+}
+
+/** Everything the owner needs to pack and post an order without opening the app. */
+interface OwnerOrderLike extends OrderLike {
+  customer_email: string
+  customer_phone: string
+  shipping_address: AddressLike | null
+  customer_note?: string | null
+  subtotal?: number | null
+  shipping_fee?: number | null
+}
+
+const inr = (n: number) => `₹${Number(n ?? 0).toLocaleString('en-IN')}`
+
+/**
+ * Escape a value before it goes into email HTML.
+ *
+ * Names, addresses and order notes are typed by customers, so they are
+ * untrusted: an apostrophe in "O'Brien" is harmless but a stray `<` silently
+ * eats the rest of the email in most clients, and a crafted note could inject
+ * markup into the owner's inbox. Everything interpolated below that originates
+ * with a customer goes through here.
+ */
+const esc = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 
 function shell(
   title: string,
@@ -39,7 +81,7 @@ export function orderConfirmationEmail(order: OrderLike): { subject: string; htm
   return {
     subject: `Your J Charms order ${order.order_number} is confirmed 🧶`,
     html: shell(
-      `Thank you, ${order.customer_name}!`,
+      `Thank you, ${esc(order.customer_name)}!`,
       `<p>We've received your order ${orderTag(order.order_number)} and payment of
         <strong>${inr(order.total)}</strong>. We'll start stitching soon!</p>
        <p style="color:#565676;">You'll get another note the moment it ships. You can also track it anytime with your order number.</p>`,
@@ -48,14 +90,15 @@ export function orderConfirmationEmail(order: OrderLike): { subject: string; htm
 }
 
 export function orderShippedEmail(order: OrderLike): { subject: string; html: string } {
+  const courier = esc(order.courier ?? 'India Post')
   const tracking = order.tracking_number
-    ? `<p>Tracking number: <strong>${order.tracking_number}</strong> (${order.courier ?? 'India Post'})</p>`
+    ? `<p>Tracking number: <strong>${esc(order.tracking_number)}</strong> (${courier})</p>`
     : ''
   return {
     subject: `Your J Charms order ${order.order_number} is on its way! 📦`,
     html: shell(
-      `It's shipped, ${order.customer_name}!`,
-      `<p>Your order ${orderTag(order.order_number)} has been handed to ${order.courier ?? 'India Post'}.</p>
+      `It's shipped, ${esc(order.customer_name)}!`,
+      `<p>Your order ${orderTag(order.order_number)} has been handed to ${courier}.</p>
        ${tracking}
        <p style="color:#565676;">Pan-India delivery usually takes a few days. Thank you for your patience 💕</p>`,
     ),
@@ -74,8 +117,102 @@ export function orderStatusEmail(
   return {
     subject: `Update on your J Charms order ${order.order_number}`,
     html: shell(
-      `Hi ${order.customer_name},`,
+      `Hi ${esc(order.customer_name)},`,
       `<p>${messages[status] ?? `Your order status is now: <strong>${status}</strong>.`}</p>`,
+    ),
+  }
+}
+
+/**
+ * The "you have a new order" alert for the shop owner.
+ *
+ * Deliberately a packing slip rather than a nudge to go log in: items, sizes,
+ * quantities, the full postal address and the customer's phone are all here, so
+ * she can pack and write the India Post label straight from her inbox. Reply-to
+ * is set to the customer, so hitting reply reaches the buyer directly.
+ */
+export function newOrderOwnerEmail(
+  order: OwnerOrderLike,
+  items: OrderItemLike[],
+  opts: { adminUrl?: string } = {},
+): { subject: string; html: string; replyTo: string } {
+  const a = order.shipping_address ?? {}
+  const addressLines = [
+    esc(order.customer_name),
+    esc(a.line1),
+    esc(a.line2),
+    [esc(a.city), esc(a.state)].filter(Boolean).join(', '),
+    esc(a.pincode),
+  ].filter((line) => line && line.trim() !== '')
+
+  const rows = items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #EEE3CD;">
+            ${esc(item.product_name)}
+            ${item.variant_name ? `<span style="color:#8A8AA3;"> · ${esc(item.variant_name)}</span>` : ''}
+          </td>
+          <td style="padding:8px 0;border-bottom:1px solid #EEE3CD;text-align:center;white-space:nowrap;">
+            × ${esc(item.quantity)}
+          </td>
+          <td style="padding:8px 0;border-bottom:1px solid #EEE3CD;text-align:right;white-space:nowrap;">
+            ${inr(item.line_total)}
+          </td>
+        </tr>`,
+    )
+    .join('')
+
+  // An order with no line rows shouldn't render a headerless empty table.
+  const itemsTable = rows
+    ? `<table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 16px;">${rows}</table>`
+    : `<p style="color:#8A8AA3;">(No line items recorded — check the dashboard.)</p>`
+
+  const totals = `
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr><td style="padding:2px 0;color:#565676;">Subtotal</td>
+          <td style="padding:2px 0;text-align:right;">${inr(order.subtotal ?? 0)}</td></tr>
+      <tr><td style="padding:2px 0;color:#565676;">Shipping</td>
+          <td style="padding:2px 0;text-align:right;">${
+            Number(order.shipping_fee ?? 0) === 0 ? 'Free' : inr(order.shipping_fee ?? 0)
+          }</td></tr>
+      <tr><td style="padding:6px 0;font-weight:600;border-top:1px solid #EEE3CD;">Paid</td>
+          <td style="padding:6px 0;text-align:right;font-weight:600;border-top:1px solid #EEE3CD;">${inr(order.total)}</td></tr>
+    </table>`
+
+  const note = order.customer_note?.trim()
+    ? `<div style="background:#FEF0F4;border-radius:12px;padding:12px 14px;margin:16px 0;">
+         <strong style="color:#D02259;">Note from the customer</strong>
+         <p style="margin:6px 0 0;">${esc(order.customer_note)}</p>
+       </div>`
+    : ''
+
+  const dashboardButton = opts.adminUrl
+    ? `<p style="text-align:center;margin:24px 0 4px;">
+         <a href="${esc(opts.adminUrl)}" style="display:inline-block;background:#1B1B4E;color:#ffffff;
+            text-decoration:none;font-weight:600;padding:11px 26px;border-radius:12px;
+            font-family:Inter,Arial,sans-serif;">Open in dashboard</a>
+       </p>`
+    : ''
+
+  return {
+    subject: `New order ${order.order_number} · ${inr(order.total)} · ${order.customer_name}`,
+    replyTo: order.customer_email,
+    html: shell(
+      'You have a new order! 🎉',
+      `<p>Payment confirmed for ${orderTag(order.order_number)}.</p>
+       <h2 style="font-family:Georgia,serif;color:#1B1B4E;font-size:16px;margin:22px 0 4px;">Items</h2>
+       ${itemsTable}
+       ${totals}
+       <h2 style="font-family:Georgia,serif;color:#1B1B4E;font-size:16px;margin:22px 0 4px;">Ship to</h2>
+       <p style="line-height:1.6;margin:4px 0;">${addressLines.join('<br>')}</p>
+       <p style="margin:4px 0;color:#565676;">
+         📞 ${esc(order.customer_phone)}<br>
+         ✉️ ${esc(order.customer_email)}
+       </p>
+       ${note}
+       ${dashboardButton}`,
+      'J Charms admin notification · Reply to this email to reach the customer directly.',
     ),
   }
 }
@@ -91,7 +228,7 @@ export function welcomeEmail(
 ): { subject: string; html: string } {
   const storeUrl = opts.storeUrl ?? 'https://jcharms.example'
   const instagramUrl = opts.instagramUrl ?? 'https://instagram.com/j_.charms'
-  const first = name?.trim() ? name.trim().split(' ')[0] : 'there'
+  const first = esc(name?.trim() ? name.trim().split(' ')[0] : 'there')
   return {
     subject: `Welcome to J Charms, ${first}! 🧶💕`,
     html: shell(

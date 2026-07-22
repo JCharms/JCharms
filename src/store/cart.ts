@@ -1,6 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { MAX_LINE_QUANTITY } from '@/lib/stock'
 import type { CartLine } from '@/types/domain'
+
+/**
+ * Quantities come from a persisted store, so they survive across sessions and
+ * can be edited by hand in localStorage. Clamp on the way in rather than trust
+ * them: the Edge Function enforces the same ceiling and would otherwise reject
+ * the whole order at the payment step, after the customer has filled in
+ * everything. A non-numeric value collapses to 1 instead of poisoning the
+ * subtotal with NaN.
+ */
+const clampQty = (n: number): number => {
+  const q = Math.floor(Number(n))
+  if (!Number.isFinite(q) || q < 1) return 1
+  return Math.min(q, MAX_LINE_QUANTITY)
+}
 
 interface CartState {
   items: CartLine[]
@@ -31,12 +46,12 @@ export const useCartStore = create<CartState>()(
             return {
               items: state.items.map((i) =>
                 sameLine(i, line.productId, line.variantId)
-                  ? { ...i, quantity: i.quantity + line.quantity }
+                  ? { ...i, quantity: clampQty(i.quantity + line.quantity) }
                   : i,
               ),
             }
           }
-          return { items: [...state.items, line] }
+          return { items: [...state.items, { ...line, quantity: clampQty(line.quantity) }] }
         }),
       removeItem: (productId, variantId) =>
         set((state) => ({
@@ -46,9 +61,7 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items
             .map((i) =>
-              sameLine(i, productId, variantId)
-                ? { ...i, quantity: Math.max(1, quantity) }
-                : i,
+              sameLine(i, productId, variantId) ? { ...i, quantity: clampQty(quantity) } : i,
             )
             .filter((i) => i.quantity > 0),
         })),

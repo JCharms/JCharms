@@ -17,6 +17,7 @@ import { TrustBadges } from '@/components/TrustBadges'
 import { Button, Price, Badge, LoadingBlock, EmptyState } from '@/components/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
 import { instagramDmUrl } from '@/lib/links'
+import { isSoldOut, maxSelectableQuantity, stockLabel } from '@/lib/stock'
 import { cn } from '@/lib/cn'
 import type { ProductVariant } from '@/types/database'
 
@@ -53,9 +54,21 @@ export function ProductDetailPage() {
   const unitPrice = variant?.price_override ?? product.base_price
   const images = product.images.length > 0 ? product.images : [null]
 
+  // Availability is judged against the chosen variant once there is one. Before
+  // that, a product whose every variant is gone still reads as sold out.
+  const soldOut = variant
+    ? isSoldOut(product, variant)
+    : product.variants.length > 0
+      ? product.variants.every((v) => isSoldOut(product, v))
+      : isSoldOut(product)
+  const maxQty = Math.max(1, maxSelectableQuantity(product, variant))
+  const lowStock = stockLabel(product, variant)
+
   function handleAdd() {
-    if (needsVariant) return
-    addProduct(product!, variant, qty)
+    if (needsVariant || soldOut) return
+    // Clamp rather than trust state: the stock ceiling can drop between render
+    // and click if she edits inventory while someone is on the page.
+    addProduct(product!, variant, Math.min(qty, maxQty))
     const el = btnRef.current
     el?.classList.remove('animate-pop')
     void el?.offsetWidth
@@ -105,9 +118,13 @@ export function ProductDetailPage() {
         <div>
           <div className="flex flex-wrap gap-2">
             {product.is_featured && <Badge tone="marigold">Loved</Badge>}
-            <Badge tone="indigo">
-              {product.stock_type === 'made_to_order' ? 'Made to order' : 'Ready to ship'}
-            </Badge>
+            {soldOut ? (
+              <Badge tone="indigo">Sold out</Badge>
+            ) : (
+              <Badge tone="indigo">
+                {product.stock_type === 'made_to_order' ? 'Made to order' : 'Ready to ship'}
+              </Badge>
+            )}
             {product.is_customizable && (
               <Badge tone="pink">
                 <Sparkles size={11} /> Customizable
@@ -147,20 +164,29 @@ export function ProductDetailPage() {
                 Choose an option{needsVariant && <span className="text-pink-600"> *</span>}
               </p>
               <div className="flex flex-wrap gap-2">
-                {product.variants.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => setVariant(v)}
-                    className={cn(
-                      'rounded-full border px-4 py-1.5 text-sm font-medium transition',
-                      variant?.id === v.id
-                        ? 'border-pink bg-pink-50 text-pink-600'
-                        : 'border-ivory-300 bg-white text-ink-muted hover:border-pink-200',
-                    )}
-                  >
-                    {v.name}
-                  </button>
-                ))}
+                {product.variants.map((v) => {
+                  // A sold-out option stays visible but unpickable — hiding it
+                  // makes the shopper wonder whether they misremembered it.
+                  const vSoldOut = isSoldOut(product, v)
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => setVariant(v)}
+                      disabled={vSoldOut}
+                      className={cn(
+                        'rounded-full border px-4 py-1.5 text-sm font-medium transition',
+                        vSoldOut
+                          ? 'cursor-not-allowed border-ivory-300 bg-ivory-200 text-ink-faint line-through'
+                          : variant?.id === v.id
+                            ? 'border-pink bg-pink-50 text-pink-600'
+                            : 'border-ivory-300 bg-white text-ink-muted hover:border-pink-200',
+                      )}
+                    >
+                      {v.name}
+                      {vSoldOut && <span className="ml-1.5 no-underline">· sold out</span>}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -183,34 +209,45 @@ export function ProductDetailPage() {
                 </a>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center rounded-full border border-ivory-300 bg-white">
-                  <button
-                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="h-11 w-11 rounded-full text-lg hover:bg-ivory-200"
-                    aria-label="Decrease quantity"
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center rounded-full border border-ivory-300 bg-white">
+                    <button
+                      onClick={() => setQty((q) => Math.max(1, q - 1))}
+                      disabled={soldOut || qty <= 1}
+                      className="h-11 w-11 rounded-full text-lg hover:bg-ivory-200 disabled:opacity-40"
+                      aria-label="Decrease quantity"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center font-mono">{qty}</span>
+                    <button
+                      onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
+                      disabled={soldOut || qty >= maxQty}
+                      className="h-11 w-11 rounded-full text-lg hover:bg-ivory-200 disabled:opacity-40"
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <Button
+                    ref={btnRef}
+                    size="lg"
+                    onClick={handleAdd}
+                    disabled={needsVariant || soldOut}
+                    className="flex-1"
                   >
-                    −
-                  </button>
-                  <span className="w-8 text-center font-mono">{qty}</span>
-                  <button
-                    onClick={() => setQty((q) => q + 1)}
-                    className="h-11 w-11 rounded-full text-lg hover:bg-ivory-200"
-                    aria-label="Increase quantity"
-                  >
-                    +
-                  </button>
+                    <ShoppingBag size={18} />
+                    {soldOut
+                      ? 'Sold out'
+                      : needsVariant
+                        ? 'Select an option'
+                        : 'Add to bag'}
+                  </Button>
                 </div>
-                <Button
-                  ref={btnRef}
-                  size="lg"
-                  onClick={handleAdd}
-                  disabled={needsVariant}
-                  className="flex-1"
-                >
-                  <ShoppingBag size={18} />
-                  {needsVariant ? 'Select an option' : 'Add to bag'}
-                </Button>
+                {lowStock && !soldOut && (
+                  <p className="text-sm font-medium text-pink-600">{lowStock} — grab it quick!</p>
+                )}
               </div>
             )}
           </div>
