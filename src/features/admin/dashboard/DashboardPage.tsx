@@ -49,14 +49,14 @@ export function DashboardPage() {
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={chartData} margin={{ left: -12 }}>
-                <CartesianGrid strokeDasharray="4 4" stroke="#EEE3CD" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#8A8AA3' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#8A8AA3' }} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="4 4" stroke="#DBE5F0" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#8296B4' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#8296B4' }} tickLine={false} axisLine={false} />
                 <Tooltip
                   formatter={(v: number, name) => (name === 'revenue' ? formatINR(v) : v)}
-                  contentStyle={{ borderRadius: 12, border: '1px solid #EEE3CD', fontSize: 13 }}
+                  contentStyle={{ borderRadius: 12, border: '1px solid #DBE5F0', fontSize: 13 }}
                 />
-                <Bar dataKey="revenue" fill="#F2618B" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="revenue" fill="#2E6FE8" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

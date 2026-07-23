@@ -71,7 +71,7 @@ export function useCheckout() {
           contact: values.customerPhone,
         },
         notes: { order_number: order.orderNumber },
-        theme: { color: '#F2618B' },
+        theme: { color: '#2E6FE8' },
         handler: async (response) => {
           // Razorpay only calls this after a successful capture. The browser
           // verify is a fast-path courtesy; the webhook is the authoritative

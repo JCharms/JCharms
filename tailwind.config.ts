@@ -11,65 +11,72 @@ const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      /**
+       * Brand palette: blue & white only (client direction, 2026-07).
+       * Depth comes from tonal range, not extra hues — deep navy for weight,
+       * vivid azure for action, airy sky/ice tints for surfaces.
+       * NOTE: token *names* (pink, marigold, sage, ivory) are legacy slots kept
+       * to avoid a 600-usage rename; read the comment for each slot's role.
+       */
       colors: {
-        // Deep Indigo — primary brand, from the logo.
+        // Deep Navy — primary brand: headings, dark surfaces, footer.
         indigo: {
-          DEFAULT: '#1B1B4E',
-          50: '#EDEDF5',
-          100: '#D2D2E6',
-          200: '#A5A5CD',
-          300: '#7878B4',
-          400: '#4B4B83',
-          500: '#1B1B4E',
-          600: '#181845',
-          700: '#131338',
-          800: '#0E0E2A',
-          900: '#08081A',
+          DEFAULT: '#15357A',
+          50: '#EDF2FB',
+          100: '#D6E1F5',
+          200: '#ACC3EA',
+          300: '#7FA0DC',
+          400: '#3F68B4',
+          500: '#15357A',
+          600: '#112C68',
+          700: '#0D2251',
+          800: '#09183A',
+          900: '#050E23',
         },
-        // Warm Ivory — page background.
+        // Cool White — page background (legacy name "ivory").
         ivory: {
-          DEFAULT: '#FDFAF4',
+          DEFAULT: '#F7FAFD',
           50: '#FFFFFF',
-          100: '#FDFAF4',
-          200: '#F6EFE1',
-          300: '#EEE3CD',
+          100: '#F7FAFD',
+          200: '#EBF1F8',
+          300: '#DBE5F0',
         },
-        // Yarn Pink — primary playful accent (buttons, highlights).
+        // Action Blue — primary CTA / accent (legacy name "pink").
         pink: {
-          DEFAULT: '#F2618B',
-          50: '#FEF0F4',
-          100: '#FCDBE5',
-          200: '#F9B8CC',
-          300: '#F693B0',
-          400: '#F2618B',
-          500: '#E93F72',
-          600: '#D02259',
-          700: '#A11945',
+          DEFAULT: '#2E6FE8',
+          50: '#EFF4FE',
+          100: '#DCE8FC',
+          200: '#B9D1F9',
+          300: '#8AB1F3',
+          400: '#2E6FE8',
+          500: '#1D5AD1',
+          600: '#1747AC',
+          700: '#123684',
         },
-        // Marigold — secondary accent (badges, small details).
+        // Sky Blue — secondary accent, badges (legacy name "marigold").
         marigold: {
-          DEFAULT: '#F0A93B',
-          50: '#FEF6E9',
-          100: '#FCE8C6',
-          200: '#F8D08A',
-          300: '#F0A93B',
-          400: '#DE9420',
-          500: '#B87716',
+          DEFAULT: '#3F97DD',
+          50: '#EEF6FD',
+          100: '#D9ECFA',
+          200: '#A8D3F3',
+          300: '#3F97DD',
+          400: '#2A7EC2',
+          500: '#1F639B',
         },
-        // Ink — body text.
+        // Ink — body text, now blue-slate so grays stay on-brand.
         ink: {
-          DEFAULT: '#22223B',
-          muted: '#565676',
-          faint: '#8A8AA3',
+          DEFAULT: '#1B2A45',
+          muted: '#4F648B',
+          faint: '#8296B4',
         },
-        // Sage — success / confirmation states, used sparingly.
+        // Steel Blue — success / confirmation states (legacy name "sage").
         sage: {
-          DEFAULT: '#A9C9A4',
-          50: '#F0F6EF',
-          100: '#DCEBDA',
-          200: '#A9C9A4',
-          300: '#7FA978',
-          400: '#5C8654',
+          DEFAULT: '#9FC0DF',
+          50: '#F0F6FB',
+          100: '#DEEBF6',
+          200: '#9FC0DF',
+          300: '#6B9CC8',
+          400: '#43759F',
         },
       },
       fontFamily: {
@@ -92,10 +99,10 @@ const config: Config = {
         blob: '2rem 2.5rem 2rem 2.5rem',
       },
       boxShadow: {
-        // Soft, warm lifts — like a physical object catching light.
-        soft: '0 2px 8px -2px rgba(34, 34, 59, 0.08), 0 4px 16px -4px rgba(34, 34, 59, 0.06)',
-        lift: '0 10px 30px -8px rgba(34, 34, 59, 0.16), 0 4px 12px -4px rgba(242, 97, 139, 0.10)',
-        focus: '0 0 0 3px rgba(242, 97, 139, 0.45)',
+        // Soft, cool lifts — like a physical object catching light.
+        soft: '0 2px 8px -2px rgba(21, 53, 122, 0.08), 0 4px 16px -4px rgba(21, 53, 122, 0.06)',
+        lift: '0 10px 30px -8px rgba(21, 53, 122, 0.16), 0 4px 12px -4px rgba(46, 111, 232, 0.10)',
+        focus: '0 0 0 3px rgba(46, 111, 232, 0.45)',
       },
       keyframes: {
         // Page-load / scroll reveal: content stitches into place.

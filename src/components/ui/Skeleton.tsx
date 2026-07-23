@@ -13,7 +13,7 @@ export function Skeleton({ className }: { className?: string }) {
 export function ProductCardSkeleton() {
   return (
     <div className="space-y-3">
-      <Skeleton className="aspect-square w-full rounded-2xl" />
+      <Skeleton className="aspect-[10/11] w-full rounded-2xl" />
       <Skeleton className="h-4 w-2/3" />
       <Skeleton className="h-4 w-1/3" />
     </div>

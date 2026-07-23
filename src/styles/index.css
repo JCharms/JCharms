@@ -26,7 +26,7 @@
   /* Visible keyboard focus everywhere — never remove without replacing. */
   :focus-visible {
     @apply outline-none;
-    box-shadow: 0 0 0 3px rgba(242, 97, 139, 0.5);
+    box-shadow: 0 0 0 3px rgba(46, 111, 232, 0.5);
     border-radius: 0.375rem;
   }
 

@@ -12,9 +12,10 @@ import { cn } from '@/lib/cn'
 import type { ProductWithRelations } from '@/types/domain'
 
 /**
- * The highest-leverage surface (spec §7): warm, tactile, a soft hover lift like
- * picking up a physical item, and a satisfying pop on Add to Cart. Featured
- * products wear the dashed running-stitch border.
+ * The highest-leverage surface (spec §7): the photo dominates — a tall
+ * full-bleed rectangle with no labels over it (client feedback), a soft hover
+ * lift like picking up a physical item, and a satisfying pop on Add to Cart.
+ * Featured products wear the dashed running-stitch border.
  */
 export function ProductCard({ product }: { product: ProductWithRelations }) {
   const { addProduct } = useCart()
@@ -28,6 +29,12 @@ export function ProductCard({ product }: { product: ProductWithRelations }) {
   const soldOut = hasVariants
     ? product.variants.every((v) => isSoldOut(product, v))
     : isSoldOut(product)
+
+  // The only thing allowed on the photo besides "Sold out": a discount tag.
+  const discountPct =
+    !isDmOnly && product.compare_at_price && product.compare_at_price > product.base_price
+      ? Math.round((1 - product.base_price / product.compare_at_price) * 100)
+      : 0
 
   function handleAdd(e: React.MouseEvent) {
     e.preventDefault()
@@ -44,17 +51,20 @@ export function ProductCard({ product }: { product: ProductWithRelations }) {
     <Link
       to={`/product/${product.slug}`}
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-2xl bg-white p-3 shadow-soft transition-all duration-300',
+        'group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-soft transition-all duration-300',
         'hover:-translate-y-1 hover:shadow-lift focus-visible:-translate-y-1',
         product.is_featured && 'stitch-border',
       )}
     >
-      <div className="relative overflow-hidden rounded-xl">
+      {/* Full-bleed portrait photo — the product sells itself, nothing on top. */}
+      <div className="relative overflow-hidden">
         <ProductImage
           image={product.images[0]}
           name={product.name}
           className={cn(
-            'aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]',
+            // 10:11 — gently taller than square, so the photo leads without
+            // the card reading as a tall rectangle.
+            'aspect-[10/11] w-full transition-transform duration-500 group-hover:scale-[1.04]',
             // Desaturating reads as "gone" at a glance, before any label is read.
             soldOut && 'opacity-60 grayscale',
           )}
@@ -66,15 +76,14 @@ export function ProductCard({ product }: { product: ProductWithRelations }) {
             </span>
           </div>
         )}
-        <div className="absolute left-2 top-2 flex flex-col gap-1">
-          {product.is_featured && <Badge tone="marigold">Loved</Badge>}
-          {!soldOut && product.stock_type === 'made_to_order' && (
-            <Badge tone="indigo">Made to order</Badge>
-          )}
-        </div>
+        {!soldOut && discountPct > 0 && (
+          <span className="absolute left-2 top-2 rounded-full bg-pink px-2.5 py-1 text-xs font-bold text-white shadow-soft">
+            −{discountPct}%
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 px-1 pt-3">
+      <div className="flex flex-1 flex-col gap-2 px-4 pb-4 pt-3">
         <h3 className="stitch-underline self-start font-display text-lg leading-snug text-indigo">
           {product.name}
         </h3>
