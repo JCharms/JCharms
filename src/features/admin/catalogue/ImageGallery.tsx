@@ -72,7 +72,10 @@ export function ImageGallery({
           className="hidden"
           onChange={(e) => onFiles(e.target.files)}
         />
-        <Button size="sm" variant="outline" isLoading={upload.isPending} onClick={() => fileRef.current?.click()}>
+        {/* type="button" throughout: this gallery renders inside the product
+            <form>, so an unmarked button submits the product as a side effect
+            of uploading, reordering or deleting a photo. */}
+        <Button type="button" size="sm" variant="outline" isLoading={upload.isPending} onClick={() => fileRef.current?.click()}>
           <Upload size={15} /> Upload
         </Button>
       </div>
@@ -97,7 +100,7 @@ export function ImageGallery({
               className="group relative overflow-hidden rounded-xl border border-ivory-300 bg-white"
             >
               <div className="aspect-square">
-                <ProductImage image={img} name="Product photo" className="h-full w-full" />
+                <ProductImage image={img} name="Product photo" size="thumb" className="h-full w-full" />
               </div>
               {img.is_placeholder ? (
                 <span
@@ -117,17 +120,18 @@ export function ImageGallery({
                 <GripVertical size={14} />
               </span>
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-indigo/70 px-1.5 py-1 opacity-0 transition group-hover:opacity-100">
-                <button onClick={() => move(i, i - 1)} aria-label="Move left" className="text-white disabled:opacity-40" disabled={i === 0}>
+                <button type="button" onClick={() => move(i, i - 1)} aria-label="Move left" className="text-white disabled:opacity-40" disabled={i === 0}>
                   <ArrowLeft size={14} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => del.mutate({ id: img.id, productId })}
                   aria-label="Delete photo"
                   className="text-white hover:text-pink-200"
                 >
                   <Trash2 size={14} />
                 </button>
-                <button onClick={() => move(i, i + 1)} aria-label="Move right" className="text-white disabled:opacity-40" disabled={i === images.length - 1}>
+                <button type="button" onClick={() => move(i, i + 1)} aria-label="Move right" className="text-white disabled:opacity-40" disabled={i === images.length - 1}>
                   <ArrowRight size={14} />
                 </button>
               </div>

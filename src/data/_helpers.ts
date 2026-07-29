@@ -1,5 +1,6 @@
 import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabaseClient'
+import { env } from '@/lib/env'
 
 /**
  * Repository-layer helpers. Everything DB-related funnels through src/data/* —
@@ -58,6 +59,30 @@ export function unwrapList<T>(
 /** Public URL for a file in a storage bucket. */
 export function storageUrl(bucket: string, path: string): string {
   return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
+}
+
+/**
+ * Public URL for an image, resized on the fly when the project can do it.
+ *
+ * Supabase's transformer serves a WebP at whatever width is asked for, which is
+ * a further ~5x saving on top of the downscale we already do at upload time.
+ * It is a **paid-plan feature**, so it is off unless `VITE_IMAGE_TRANSFORM` is
+ * set — on a plan without it, transformed URLs would start failing and every
+ * photo on the site would fall back to the placeholder tile.
+ *
+ * Callers must therefore treat the result as best-effort: `ProductImage` retries
+ * with the untransformed original if a transformed URL fails to load, so
+ * flipping this flag on a plan that doesn't support it degrades instead of
+ * breaking.
+ */
+const TRANSFORM_QUALITY = 72
+
+export function storageImageUrl(bucket: string, path: string, width?: number): string {
+  if (!width || !env.imageTransforms) return storageUrl(bucket, path)
+  return supabase.storage
+    .from(bucket)
+    .getPublicUrl(path, { transform: { width, quality: TRANSFORM_QUALITY } })
+    .data.publicUrl
 }
 
 export const BUCKET = {

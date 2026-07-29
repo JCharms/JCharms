@@ -125,7 +125,7 @@ export function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="mb-8 flex items-end justify-between">
           <div>
-            <h2 className="font-display text-3xl text-indigo">Freshly stitched</h2>
+            <h2 className="font-display text-3xl text-indigo">Best Sellers</h2>
             <RunningStitch className="mt-3 max-w-[140px] text-pink" />
           </div>
           <Link to="/shop" className="stitch-underline text-sm font-semibold text-pink-600">

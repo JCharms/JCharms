@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="8" fill="#15357A" />
-  <!-- yarn ball -->
-  <circle cx="16" cy="17" r="8" fill="#2E6FE8" />
-  <path d="M9 15 Q16 19 23 15 M10 19 Q16 22 22 19 M13 10 Q16 17 13 24 M19 10 Q16 17 19 24"
-        stroke="#FFFFFF" stroke-width="1" fill="none" opacity="0.7" />
-  <!-- sky-blue stitch accent -->
-  <path d="M6 8 h4 M14 6 h4 M22 8 h3" stroke="#A8D3F3" stroke-width="2" stroke-linecap="round" />
+  <!-- "JC" set in Georgia Bold and converted to outlines, so the mark never
+       depends on a font resolving wherever a favicon gets drawn. Georgia is
+       the brand display face's own declared fallback (tailwind.config.ts:
+       display: [Fraunces, Georgia, serif]). To change the letters, re-set
+       them in Georgia Bold and convert to outlines — don't nudge the path. -->
+  <path d="M14.87 8.93Q14.42 8.98 14.11 9.04Q13.79 9.1 13.4 9.2Q12.94 9.32 12.81 9.63Q12.68 9.95 12.68 10.35V19.11Q12.68 20.32 12.2 21.33Q11.71 22.33 10.86 23.02Q10 23.69 8.93 24.03Q7.87 24.37 6.66 24.37Q4.56 24.37 3.28 23.36Q2 22.36 2 20.6Q2 19.56 2.59 18.87Q3.18 18.19 4.21 18.19Q5.18 18.19 5.76 18.76Q6.33 19.33 6.33 20.17Q6.33 20.89 5.84 21.5Q5.34 22.11 4.7 22.62V22.77Q4.8 22.99 5.14 23.15Q5.47 23.31 5.82 23.31Q7.16 23.31 7.93 22.34Q8.7 21.38 8.7 19.43V10.46Q8.7 10.06 8.57 9.79Q8.45 9.52 7.98 9.32Q7.64 9.17 7.17 9.07Q6.69 8.97 6.38 8.93V8.05H14.87ZM23 24.37Q21.25 24.37 19.73 23.81Q18.21 23.24 17.08 22.17Q15.97 21.11 15.33 19.56Q14.69 18.01 14.69 16.15Q14.69 14.3 15.33 12.73Q15.98 11.16 17.14 10Q18.28 8.87 19.89 8.25Q21.49 7.63 23.31 7.63Q24.64 7.63 25.72 7.95Q26.81 8.27 27.56 8.67L28.25 8.05H29.23L29.33 13.86H28.34Q27.5 11.2 26.33 9.96Q25.15 8.71 23.46 8.71Q21.35 8.71 20.26 10.57Q19.16 12.42 19.16 15.77Q19.16 17.66 19.53 19Q19.91 20.34 20.51 21.16Q21.16 22.01 22.05 22.41Q22.93 22.8 24.01 22.8Q25.58 22.8 26.8 21.95Q28.03 21.1 29.04 19.38L30 19.96Q29.52 20.94 28.9 21.72Q28.29 22.5 27.48 23.06Q26.6 23.68 25.53 24.02Q24.46 24.37 23 24.37Z" fill="#FFFFFF" />
 </svg>

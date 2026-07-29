@@ -17,7 +17,14 @@ import type { ProductWithRelations } from '@/types/domain'
  * lift like picking up a physical item, and a satisfying pop on Add to Cart.
  * Featured products wear the dashed running-stitch border.
  */
-export function ProductCard({ product }: { product: ProductWithRelations }) {
+export function ProductCard({
+  product,
+  priority = false,
+}: {
+  product: ProductWithRelations
+  /** Set on the first rows of a grid — they load without waiting to be observed. */
+  priority?: boolean
+}) {
   const { addProduct } = useCart()
   const { data: config } = useSiteConfig()
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -61,6 +68,8 @@ export function ProductCard({ product }: { product: ProductWithRelations }) {
         <ProductImage
           image={product.images[0]}
           name={product.name}
+          size="card"
+          priority={priority}
           className={cn(
             // 10:11 — gently taller than square, so the photo leads without
             // the card reading as a tall rectangle.

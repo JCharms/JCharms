@@ -72,6 +72,8 @@ export function ProductEditorPage() {
 
   const nameValue = watch('name')
   const purchaseMode = watch('purchase_mode')
+  const stockTypeValue = watch('stock_type')
+  const hasCountedVariants = !!product?.variants.some((v) => v.stock_quantity !== null)
 
   // The slug is a URL detail the owner shouldn't have to think about: keep it
   // mirrored from the name until (and unless) it's edited by hand.
@@ -145,7 +147,14 @@ export function ProductEditorPage() {
           {!isNew && product && (
             <>
               <ImageGallery productId={product.id} images={product.images} />
-              <VariantsEditor productId={product.id} variants={product.variants} basePrice={product.base_price} />
+              {/* Reads the live form value, not the saved row, so switching to
+                  "Ready stock" reveals the per-option counts straight away. */}
+              <VariantsEditor
+                productId={product.id}
+                variants={product.variants}
+                basePrice={product.base_price}
+                stockType={stockTypeValue}
+              />
             </>
           )}
           {isNew && (
@@ -214,6 +223,13 @@ export function ProductEditorPage() {
               placeholder="Leave blank if you don't count stock"
               {...register('stock_quantity')}
               error={errors.stock_quantity?.message}
+              hint={
+                stockTypeValue !== 'ready_stock'
+                  ? 'Only counted for ready-stock products.'
+                  : hasCountedVariants
+                    ? 'Options with their own “In stock” number use that instead of this — this covers any option left blank.'
+                    : 'Set a per-colour count under Options & stock if you keep different numbers of each.'
+              }
             />
             <div>
               <p className="mb-1.5 text-sm font-medium text-ink">Dispatch time (days)</p>

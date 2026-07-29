@@ -96,6 +96,8 @@ export function CartDrawer() {
                       path={item.imagePath}
                       isPlaceholder={!item.imagePath}
                       name={item.name}
+                      size="thumb"
+                      priority
                       className="h-full w-full"
                     />
                   </Link>

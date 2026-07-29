@@ -41,7 +41,10 @@ export function ProductGrid({
           className="animate-stitch-in"
           style={{ animationDelay: `${Math.min(i * 60, 420)}ms` }}
         >
-          <ProductCard product={product} />
+          {/* The opening rows are on screen before any scroll happens, so they
+              shouldn't wait on an intersection callback to start loading. Six
+              covers three rows on a phone and two on desktop. */}
+          <ProductCard product={product} priority={i < 6} />
         </div>
       ))}
     </div>

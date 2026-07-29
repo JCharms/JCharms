@@ -25,4 +25,13 @@ export const env = {
    * Set it in production so auth emails always link to the live site.
    */
   siteUrl: (import.meta.env.VITE_SITE_URL ?? '').replace(/\/+$/, ''),
+  /**
+   * Serve product photos through Supabase's on-the-fly image resizer.
+   *
+   * Off by default because it is a paid-plan feature: on a plan without it every
+   * transformed URL 400s. Photos are already downscaled at upload time, so this
+   * is an extra saving rather than a requirement. Set to "true" only once the
+   * project is on a plan that includes image transformations.
+   */
+  imageTransforms: import.meta.env.VITE_IMAGE_TRANSFORM === 'true',
 } as const

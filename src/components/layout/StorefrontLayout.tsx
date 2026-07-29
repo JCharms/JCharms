@@ -146,6 +146,39 @@ export function StorefrontLayout() {
         <div className="border-t border-indigo-400/30 px-4 py-4 text-center text-xs text-ivory-200/70">
           © {new Date().getFullYear()} J Charms · Individual seller · Made to order
         </div>
+
+        {/* Agency credit. Deliberately the quietest thing on the page: below the
+            copyright, dimmer than it, and it brightens only on hover — a maker's
+            mark, not an advert competing with the shop's own footer. */}
+        <div className="border-t border-indigo-400/20 px-4 py-3.5">
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-ivory-200/50">
+            <span>Designed &amp; built by</span>
+            <a
+              href="https://bitbew.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Bitbew — opens in a new tab"
+              className="inline-flex"
+            >
+              <img
+                src="/bitbew.png"
+                alt="Bitbew"
+                width={231}
+                height={42}
+                loading="lazy"
+                decoding="async"
+                className="h-3.5 w-auto opacity-70 transition-opacity hover:opacity-100"
+              />
+            </a>
+            <span aria-hidden>·</span>
+            <a
+              href="tel:+918146622525"
+              className="tabular-nums transition-colors hover:text-ivory-100"
+            >
+              +91 81466 22525
+            </a>
+          </p>
+        </div>
       </footer>
 
       <CategoryPanel />

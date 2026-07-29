@@ -18,6 +18,7 @@ import { Button, Price, Badge, LoadingBlock, EmptyState } from '@/components/ui'
 import { RunningStitch } from '@/components/ui/RunningStitch'
 import { instagramDmUrl } from '@/lib/links'
 import { isSoldOut, maxSelectableQuantity, stockLabel } from '@/lib/stock'
+import { returnsNoteFor } from '@/lib/policy'
 import { cn } from '@/lib/cn'
 import type { ProductVariant } from '@/types/database'
 
@@ -63,6 +64,16 @@ export function ProductDetailPage() {
       : isSoldOut(product)
   const maxQty = Math.max(1, maxSelectableQuantity(product, variant))
   const lowStock = stockLabel(product, variant)
+  const returnsNote = returnsNoteFor(product.stock_type)
+
+  // Each colour carries its own stock count, so the ceiling moves when the
+  // choice does. Clamp on the way in — otherwise picking "10" against a plentiful
+  // colour and then switching to one with 2 left leaves "10" on screen while
+  // only 2 quietly go in the bag.
+  function chooseVariant(next: ProductVariant) {
+    setVariant(next)
+    setQty((q) => Math.min(q, Math.max(1, maxSelectableQuantity(product!, next))))
+  }
 
   function handleAdd() {
     if (needsVariant || soldOut) return
@@ -92,6 +103,8 @@ export function ProductDetailPage() {
             <ProductImage
               image={images[activeImage]}
               name={product.name}
+              size="hero"
+              priority
               className="aspect-square w-full"
             />
           </div>
@@ -107,7 +120,13 @@ export function ProductDetailPage() {
                     activeImage === i ? 'border-pink' : 'border-transparent opacity-70',
                   )}
                 >
-                  <ProductImage image={img} name={product.name} className="h-full w-full" />
+                  <ProductImage
+                    image={img}
+                    name={product.name}
+                    size="thumb"
+                    priority
+                    className="h-full w-full"
+                  />
                 </button>
               ))}
             </div>
@@ -171,7 +190,7 @@ export function ProductDetailPage() {
                   return (
                     <button
                       key={v.id}
-                      onClick={() => setVariant(v)}
+                      onClick={() => chooseVariant(v)}
                       disabled={vSoldOut}
                       className={cn(
                         'rounded-full border px-4 py-1.5 text-sm font-medium transition',
@@ -253,15 +272,16 @@ export function ProductDetailPage() {
           </div>
 
           {/* The one thing that can't be undone after buying, said at the point
-              of deciding. Delivery + payment reassurance live in the badges
-              below — stating them twice within a screen reads as filler. */}
+              of deciding. Worded from the product's own stock type — a claw clip
+              is not "stitched just for you". Delivery + payment reassurance live
+              in the badges below; stating them twice reads as filler. */}
           {!isDmOnly && (
             <p className="mt-6 flex gap-2.5 rounded-2xl border border-ivory-300 bg-white/60 p-4 text-sm">
               <RotateCcw size={16} className="mt-0.5 shrink-0 text-indigo" aria-hidden />
               <span>
-                <span className="font-medium text-ink">Made to order</span>
+                <span className="font-medium text-ink">{returnsNote.heading}</span>
                 <span className="text-ink-muted">
-                  {' '}— stitched just for you, so it isn't eligible for return.{' '}
+                  {' '}— {returnsNote.detail}{' '}
                   <Link to="/policies" className="stitch-underline text-pink-600">
                     Read the full policy
                   </Link>

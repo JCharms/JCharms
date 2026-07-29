@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_RAZORPAY_KEY_ID: string
   /** Canonical public origin for emailed links. Optional — see lib/siteUrl.ts. */
   readonly VITE_SITE_URL: string
+  /** "true" to serve photos via Supabase image resizing (paid plans only). */
+  readonly VITE_IMAGE_TRANSFORM: string
 }
 
 interface ImportMeta {

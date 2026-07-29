@@ -22,6 +22,8 @@ supabase/.temp
 supabase/snippets
 supabase/.env
 supabase/functions/.env
+# originals saved by shrink-stored-images.mjs — hundreds of MB of photos
+supabase/maintenance/image-backup/
 
 # editor / os
 .vscode/*

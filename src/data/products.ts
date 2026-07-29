@@ -45,9 +45,7 @@ export async function listProducts(
     query = query.in('category_id', ids)
   }
 
-  return normalizeList(unwrapList(await query, 'listProducts'), {
-    dropPlaceholders: true,
-  })
+  return normalizeList(unwrapList(await query, 'listProducts'), STOREFRONT_VIEW)
 }
 
 export async function listFeaturedProducts(): Promise<ProductWithRelations[]> {
@@ -108,21 +106,36 @@ export async function getProductBySlug(
     .eq('is_active', true)
     .maybeSingle()
   if (error) throw new Error(`[getProductBySlug] ${error.message}`)
-  return data ? normalize(data, { dropPlaceholders: true }) : null
+  return data ? normalize(data, STOREFRONT_VIEW) : null
 }
 
 // Supabase returns nested relations that may be arrays/objects; keep the app's
 // ProductWithRelations shape tidy and sorted here in the repo.
 interface NormalizeOpts {
   /**
-   * Storefront only: a placeholder row is a stand-in for "no photo yet". Once a
-   * real photo exists, hide the placeholders — otherwise a seeded placeholder
-   * sitting at sort_order 0 keeps winning `images[0]` and the card still reads
-   * "photo coming soon" after the owner uploads a real picture.
+   * A placeholder row is a stand-in for "no photo yet". Once a real photo
+   * exists, hide the placeholders — otherwise a seeded placeholder sitting at
+   * sort_order 0 keeps winning `images[0]` and the card still reads "photo
+   * coming soon" after the owner uploads a real picture.
    *
    * The admin gallery keeps them visible so they can be deleted.
    */
   dropPlaceholders?: boolean
+  /**
+   * Hide variants the owner has switched off.
+   *
+   * Storefront only, and deliberately so: the admin editor has to keep showing
+   * a hidden variant, because a row that disappears from the only screen that
+   * can edit it can never be switched back on — and its stock count would be
+   * invisible while still being spent by `consume_order_stock`.
+   */
+  activeVariantsOnly?: boolean
+}
+
+/** What a shopper is allowed to see. Every public read uses exactly this. */
+const STOREFRONT_VIEW: NormalizeOpts = {
+  dropPlaceholders: true,
+  activeVariantsOnly: true,
 }
 
 function normalize(
@@ -136,7 +149,7 @@ function normalize(
     ...p,
     images: opts.dropPlaceholders && real.length > 0 ? real : sorted,
     variants: [...(p.variants ?? [])]
-      .filter((v) => v.is_active)
+      .filter((v) => !opts.activeVariantsOnly || v.is_active)
       .sort((a, b) => a.sort_order - b.sort_order),
   }
 }

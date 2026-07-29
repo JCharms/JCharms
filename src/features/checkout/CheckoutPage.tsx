@@ -184,7 +184,7 @@ export function CheckoutPage() {
               {items.map((item) => (
                 <div key={`${item.productId}-${item.variantId}`} className="flex gap-3">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg">
-                    <ProductImage path={item.imagePath} isPlaceholder={!item.imagePath} name={item.name} className="h-full w-full" />
+                    <ProductImage path={item.imagePath} isPlaceholder={!item.imagePath} name={item.name} size="thumb" priority className="h-full w-full" />
                   </div>
                   <div className="flex flex-1 items-center justify-between gap-2 text-sm">
                     <div>

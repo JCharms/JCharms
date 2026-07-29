@@ -56,6 +56,47 @@ export function amountToFreeShipping(config: SiteConfig, subtotal: number): numb
   return config.freeShippingOver - subtotal
 }
 
+/**
+ * Mirrors public.stock_type. Declared structurally rather than imported so this
+ * module keeps its no-dependencies promise (same trick as src/lib/stock.ts).
+ */
+type StockKind = 'ready_stock' | 'made_to_order'
+
+export interface ReturnsNote {
+  /** Bolded lead — the product fact this follows from. */
+  heading: string
+  /** What it means for the buyer, in one sentence. */
+  detail: string
+}
+
+/**
+ * The line shown on a product page at the point of deciding: the one thing that
+ * can't be undone after buying.
+ *
+ * Split by stock type because the *reason* differs even though the rule doesn't.
+ * "Stitched just for you" is true of a crocheted bouquet and plainly false of a
+ * bought-in claw clip, and a shopper who reads it on a claw clip stops trusting
+ * the rest of the page.
+ *
+ * Both variants deliberately stay short and defer to the full policy rather than
+ * restating it. The authoritative text is the `returns_policy` site setting,
+ * editable in admin → Settings; **if that setting is ever changed to allow
+ * returns, these two sentences must change with it.** They are hardcoded because
+ * they are one-line summaries, not the policy itself.
+ */
+export function returnsNoteFor(stockType: StockKind): ReturnsNote {
+  if (stockType === 'made_to_order') {
+    return {
+      heading: 'Made to order',
+      detail: "stitched just for you, so it isn't eligible for return.",
+    }
+  }
+  return {
+    heading: 'Ready to ship',
+    detail: "sent from our shelf, so it's on its way quickly — returns and exchanges aren't available.",
+  }
+}
+
 /** "12–15 days" — the delivery window in words. */
 export function deliveryEstimateLabel(config: SiteConfig): string {
   const { deliveryDaysMin: min, deliveryDaysMax: max } = config
