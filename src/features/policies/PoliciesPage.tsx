@@ -30,7 +30,7 @@ export function PoliciesPage() {
         <h1 className="font-display text-4xl text-indigo">Shipping &amp; returns</h1>
         <RunningStitch className="mx-auto mt-3 max-w-[140px] text-pink" />
         <p className="mx-auto mt-4 max-w-lg text-ink-muted">
-          Everything here is stitched by hand, one piece at a time. Here's exactly
+          Every order is prepared and packed by hand, one at a time. Here's exactly
           what to expect once you order.
         </p>
       </header>
@@ -46,7 +46,7 @@ export function PoliciesPage() {
               <p className="mt-2 text-ink-muted">
                 Orders usually reach you in{' '}
                 <strong className="text-ink">{delivery}</strong> from the day they're
-                placed. That covers the time to make your piece by hand plus transit —
+                placed. That covers getting your order ready by hand plus transit —
                 so it's a little slower than a factory shop, and a lot more personal.
               </p>
             )}
@@ -92,8 +92,8 @@ export function PoliciesPage() {
               <p className="mt-2 whitespace-pre-line text-ink-muted">{config.returnsPolicy}</p>
             ) : (
               <p className="mt-2 text-ink-muted">
-                Because every piece is made to order by hand, we're not able to accept
-                returns or exchanges.
+                Because our pieces are prepared individually for each order, we're not
+                able to accept returns or exchanges.
               </p>
             )}
           </div>

@@ -28,7 +28,7 @@ export function ProductGrid({
       <EmptyState
         icon={PackageOpen}
         title={emptyLabel}
-        description="New handmade pieces are added often — check back soon!"
+        description="New pieces are added often — check back soon!"
       />
     )
   }

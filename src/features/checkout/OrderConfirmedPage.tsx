@@ -48,8 +48,8 @@ export function OrderConfirmedPage() {
       <h1 className="mt-6 font-display text-4xl text-indigo">Yay — order placed!</h1>
       <RunningStitch className="mx-auto mt-3 max-w-[160px] text-pink" />
       <p className="mt-4 text-ink-muted">
-        Thank you for supporting handmade 💕 We've emailed your confirmation and will
-        start stitching soon.
+        Thank you for supporting a small shop 💕 We've emailed your confirmation and
+        we'll start getting your order ready soon.
         {deliveryEstimate && (
           <> Your order should reach you in about <strong className="text-ink">{deliveryEstimate}</strong>.</>
         )}

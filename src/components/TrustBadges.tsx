@@ -5,9 +5,12 @@ import { formatINR } from '@/lib/format'
 import { cn } from '@/lib/cn'
 
 /**
- * The four reassurances a first-time buyer of handmade goods wants before
- * paying a stranger: the money is safe, the thing is good, it's genuinely
- * handmade here, and it will actually turn up.
+ * The four reassurances a first-time buyer of a small shop wants before paying
+ * a stranger: the money is safe, the thing is good, it's made and packed here,
+ * and it will actually turn up.
+ *
+ * This panel is the same under every product, so every line has to hold for the
+ * whole catalogue — hand-crocheted pieces *and* ready-made accessories.
  *
  * Delivery and shipping copy read from site_settings, so the promise made here
  * can't drift from what checkout charges.
@@ -32,7 +35,10 @@ export function TrustBadges({ className }: { className?: string }) {
     {
       icon: MapPin,
       title: 'Made in India',
-      body: 'Crocheted one at a time, at home — never mass-produced.',
+      // Type-neutral on purpose: this panel is decorative and renders under
+      // every product, so it must be true of a crocheted bouquet and a claw
+      // clip alike. Don't reintroduce "crocheted" here.
+      body: 'Packed by hand at home in India — small batches, never mass-produced.',
     },
     {
       icon: Truck,

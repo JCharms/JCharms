@@ -9,7 +9,7 @@ export function NotFoundPage() {
       <h1 className="mt-4 font-display text-3xl text-indigo">This thread got tangled</h1>
       <RunningStitch className="mx-auto mt-3 max-w-[140px] text-pink" />
       <p className="mt-4 text-ink-muted">
-        We couldn't find that page — but there's plenty of handmade goodness back home.
+        We couldn't find that page — but there's plenty of pretty things back home.
       </p>
       <Link to="/" className="mt-8">
         <Button size="lg">Take me home</Button>

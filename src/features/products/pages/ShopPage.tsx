@@ -26,7 +26,9 @@ export function ShopPage() {
   // Keep the parent highlighted even when a child category is selected.
   const activeTop = categorySlug ? rootAncestorOf(all, categorySlug) : undefined
   const isChildSelected = !!activeTop && activeTop.slug !== categorySlug
-  const title = categorySlug ? (category?.name ?? 'Shop') : 'Everything handmade'
+  // Deliberately generic: the catalogue mixes hand-crocheted pieces with
+  // ready-made accessories, so a heading that claims either is wrong half the time.
+  const title = categorySlug ? (category?.name ?? 'Shop') : 'Explore the shop'
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">

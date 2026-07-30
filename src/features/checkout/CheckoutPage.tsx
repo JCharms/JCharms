@@ -213,7 +213,7 @@ export function CheckoutPage() {
             {config && (
               <p className="text-center text-xs leading-relaxed text-ink-faint">
                 {deliveryEstimate && <>Delivery in {deliveryEstimate}. </>}
-                Handmade to order, so returns aren't available —{' '}
+                Each order is prepared individually, so returns aren't available —{' '}
                 <Link to="/policies" className="stitch-underline text-pink-600">
                   see our policy
                 </Link>

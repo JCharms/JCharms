@@ -126,7 +126,7 @@ export function orderConfirmationEmail(
     subject: `Your J Charms order ${order.order_number} is confirmed 🧶`,
     html: shell(
       `Thank you, ${esc(order.customer_name)}!`,
-      `<p>We've received your order ${orderTag(order.order_number)} and we'll start stitching soon!</p>
+      `<p>We've received your order ${orderTag(order.order_number)} and we'll start getting it ready soon!</p>
        ${customerItemsTable(items)}
        ${totals}
        <p style="color:#4F648B;margin-top:16px;">You'll get another note the moment it ships. You can also track it anytime with your order number.</p>`,
@@ -160,7 +160,7 @@ export function orderStatusEmail(
   items: OrderItemLike[] = [],
 ): { subject: string; html: string } {
   const messages: Record<string, string> = {
-    processing: `We've started making your order ${orderTag(order.order_number)} by hand.`,
+    processing: `We've started getting your order ${orderTag(order.order_number)} ready by hand.`,
     delivered: `Your order ${orderTag(order.order_number)} has been delivered — we hope you love it! 🥰`,
     cancelled: `Your order ${orderTag(order.order_number)} has been cancelled. If this is unexpected, just reply to this email.`,
   }
@@ -285,8 +285,8 @@ export function welcomeEmail(
     html: shell(
       `Welcome to the yarn club, ${first}!`,
       `<p>Your email is verified and your account is ready — we're so happy you're here. 🥰</p>
-       <p style="color:#4F648B;">Every J Charms piece is crocheted by hand, one at a time. Browse the shop for
-        ready-to-ship charms, or message us on Instagram to plan a custom piece that's entirely yours.</p>
+       <p style="color:#4F648B;">Every J Charms order is put together by hand, one at a time. Browse the shop for
+        ready-to-ship charms and accessories, or message us on Instagram to plan a custom piece that's entirely yours.</p>
        <p style="text-align:center;margin:28px 0 8px;">
          <a href="${storeUrl}" style="display:inline-block;background:#1747AC;color:#ffffff;text-decoration:none;
             font-weight:600;padding:12px 28px;border-radius:12px;font-family:Inter,Arial,sans-serif;">

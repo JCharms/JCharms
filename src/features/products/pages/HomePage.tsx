@@ -57,14 +57,14 @@ export function HomePage() {
         <div className="mx-auto flex min-h-[540px] max-w-6xl items-center px-4 py-16 sm:px-6 md:min-h-[620px]">
           <div className="animate-stitch-in max-w-xl">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-marigold-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-marigold-500">
-              <Heart size={13} aria-hidden /> Handmade to order
+              <Heart size={13} aria-hidden /> Handmade &amp; handpicked
             </span>
             <h1 className="mt-5 font-display text-5xl leading-[1.05] text-indigo sm:text-6xl">
-              Stitch . Style. <span className="stitch-underline text-pink">Smile</span>.
+              Stitch. Style. <span className="stitch-underline text-pink">Smile</span>.
             </h1>
             <p className="mt-5 max-w-md text-lg text-ink-muted">
-              Crochet flowers, keychains, plushies, bouquets and hair accessories — each one
-              stitched by hand, made to be gifted (or kept).
+              Crochet flowers, keychains, plushies, bouquets and hair accessories — chosen
+              and finished by hand, made to be gifted (or kept).
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
